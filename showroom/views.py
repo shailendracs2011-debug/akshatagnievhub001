@@ -253,7 +253,8 @@ def invoice_pdf(request, pk):
 
     story.append(Paragraph(f"<b>Bill To:</b><br/>{sale.customer_name}<br/>{getattr(sale.customer, 'address', '') or ''}<br/>{getattr(sale.customer, 'mobile', '') or ''}<br/>{getattr(sale.customer, 'email', '') or ''}", styles['Normal']))
     story.append(Spacer(1, 6))
-    story.append(Paragraph(f"<b>Invoice No:</b> {sale.invoice_no}<br/><b>Date:</b> {sale.sale_date.strftime('%d %b %Y') if sale.sale_date else ''}<br/><b>Payment Mode:</b> {sale.payment_mode}<br/><b>Payment Status:</b> {sale.payment_status}", styles['Normal']))
+    payment_status = getattr(getattr(sale, 'order', None), 'payment_status', '') or ''
+    story.append(Paragraph(f"<b>Invoice No:</b> {sale.invoice_no}<br/><b>Date:</b> {sale.sale_date.strftime('%d %b %Y') if sale.sale_date else ''}<br/><b>Payment Mode:</b> {sale.payment_mode}<br/><b>Payment Status:</b> {payment_status}", styles['Normal']))
     story.append(Spacer(1, 12))
 
     data = [
