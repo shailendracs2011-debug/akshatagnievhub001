@@ -1,0 +1,12 @@
+{% load static %}
+<!doctype html><html lang="{{ lang|default:'en' }}"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}Akshat Agni EV Motors{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'css/site.css' %}">
+</head><body>
+<header class="top"><div class="wrap nav"><a class="brand" href="{% url 'home' %}">{% if site.logo_data %}<img src="{{ site.logo_data }}" alt="logo">{% else %}<span class="brandmark">AA</span>{% endif %}<span><b>{{ site.business_name }}</b><small>EV MOTORS • MAIHAR</small></span></a>
+<nav><a href="{% url 'home' %}">{% if lang == 'hi' %}होम{% else %}Home{% endif %}</a><a href="{% url 'category' 'e-scooter' %}">{% if lang == 'hi' %}ई-स्कूटर{% else %}E-Scooters{% endif %}</a><a href="{% url 'category' 'e-auto-7-seater' %}">{% if lang == 'hi' %}ई-ऑटो{% else %}E-Auto{% endif %}</a><a href="{% url 'gallery' %}">{% if lang == 'hi' %}गैलरी{% else %}Gallery{% endif %}</a><a href="{% url 'service' %}">{% if lang == 'hi' %}सर्विस{% else %}Service{% endif %}</a><a href="{% url 'support' %}">{% if lang == 'hi' %}सपोर्ट{% else %}Support{% endif %}</a></nav>
+<div class="actions"><a class="lang" href="{% url 'language' 'en' %}">EN</a><a class="lang" href="{% url 'language' 'hi' %}">हि</a><a class="pill" href="tel:{{ site.phone_primary }}">Call</a></div></div></header>
+{% if messages %}<div class="wrap messages">{% for m in messages %}<div class="msg">{{ m }}</div>{% endfor %}</div>{% endif %}
+<main>{% block content %}{% endblock %}</main>
+<footer><div class="wrap foot"><div><b>{{ site.business_name }}</b><p>{{ site.address }}</p></div><div><p>📞 {{ site.phone_primary }}{% if site.phone_secondary %} • {{ site.phone_secondary }}{% endif %}</p><p>WhatsApp: {{ site.whatsapp }}</p></div><div><p><a href="{% url 'enquiry' %}">General Enquiry</a> · <a href="{% url 'service' %}">Service</a> · <a href="{% url 'support' %}">Support</a></p></div></div><div class="copyright">© {{ site.business_name }} · Built for local + cloud deployment</div></footer>
+</body></html>

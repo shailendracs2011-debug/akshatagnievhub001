@@ -1,0 +1,9 @@
+{% extends 'erp/base.html' %}
+{% block content %}
+<div class="page-actions">
+  <a class="btn" href="{% url 'export_inventory' %}">Export Excel</a>
+  <a class="btn" href="/admin/showroom/product/add/">Add Product</a>
+</div>
+<section class="panel"><div class="table-scroll"><table><tr><th>Image</th><th>Model</th><th>Category</th><th>Segment</th><th>SKU</th><th>Stock</th><th>MRP</th><th>Offer Price</th><th>EMI</th><th>State</th></tr>
+{% for p in products %}<tr><td>{% if p.image_data %}<a href="{{ p.image_data }}" target="_blank"><img src="{{ p.image_data }}" style="width:56px;height:42px;object-fit:contain"></a>{% else %}—{% endif %}</td><td>{{ p.name }}</td><td>{{ p.category.name|default:'-' }}</td><td>{{ p.segment|default:'-' }}</td><td>{{ p.sku|default:'-' }}</td><td><b>{{ p.stock }}</b></td><td>₹{{ p.price|floatformat:0 }}</td><td>₹{{ p.display_price|floatformat:0 }}</td><td>{% if p.emi_enabled %}Available{% else %}No{% endif %}</td><td>{% if p.coming_soon %}Coming Soon{% elif p.published %}Published{% else %}Hidden{% endif %}</td></tr>{% empty %}<tr><td colspan="10">No products</td></tr>{% endfor %}</table></div></section>
+{% endblock %}

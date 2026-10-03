@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Book {{ product.name }} | Akshat Agni{% endblock %}
+{% block content %}
+<section class="wrap form-page">
+  <div class="form-intro">
+    <span class="eyebrow green">BOOK ORDER</span>
+    <h1>{{ product.name }}</h1>
+    <div class="price-box">
+      {% if product.offer_price %}<span class="mrp">MRP ₹{{ product.price|floatformat:0 }}</span>{% endif %}
+      <strong>₹{{ product.display_price|floatformat:0 }}</strong>
+      {% if product.discount_percent %}<span class="discount">{{ product.discount_percent|floatformat:0 }}% OFF</span>{% endif %}
+    </div>
+    <p>Booking request only. Final availability and payment can be confirmed by the showroom.</p>
+  </div>
+  <form method="post" class="form-card">
+    {% csrf_token %}
+    <label>Quantity <input type="number" name="quantity" min="1" value="1"></label>
+    {{ form.as_p }}
+    {% if product.booking_amount %}<p><strong>Booking amount:</strong> ₹{{ product.booking_amount|floatformat:0 }}</p>{% endif %}
+    <button class="btn primary" type="submit">Submit Booking</button>
+  </form>
+</section>
+{% endblock %}

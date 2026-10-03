@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} | Akshat Agni EV Motors{% endblock %}
+{% block content %}
+<section class="wrap product-detail">
+  <div class="detail-media">
+    <div class="detail-main" id="mainProductImage">
+      {% if product.image_data %}
+        <a href="{{ product.image_data }}" target="_blank" rel="noopener"><img src="{{ product.image_data }}" alt="{{ product.name }}" id="mainImage"></a>
+      {% else %}
+        <div class="vehicle-art big"><span>⚡</span><b>{{ product.name }}</b><small>{% if product.coming_soon %}Coming Soon{% else %}EV MODEL{% endif %}</small></div>
+      {% endif %}
+    </div>
+    {% if gallery %}
+      <div class="thumbs">
+        {% if product.image_data %}<button type="button" class="thumb-btn" onclick="setMainImage('{{ product.image_data }}')"><img src="{{ product.image_data }}" alt="Main"></button>{% endif %}
+        {% for g in gallery %}<button type="button" class="thumb-btn" onclick="setMainImage('{{ g.image_data }}')"><img src="{{ g.image_data }}" alt="{{ g.caption }}"></button>{% endfor %}
+      </div>
+    {% endif %}
+  </div>
+  <div class="detail-copy">
+    <span class="eyebrow green">{{ product.category.name }}{% if product.segment %} · {{ product.segment }}{% endif %}</span>
+    <h1>{% if lang == 'hi' %}{{ product.name_hi|default:product.name }}{% else %}{{ product.name }}{% endif %}</h1>
+    <p class="lead">{% if lang == 'hi' %}{{ product.description_hi|default:product.description }}{% else %}{{ product.description }}{% endif %}</p>
+    <div class="specs">
+      <div><small>Battery</small><b>{{ product.battery|default:'On enquiry' }}</b></div>
+      <div><small>Range</small><b>{{ product.range_text|default:'On enquiry' }}</b></div>
+      <div><small>Warranty</small><b>{{ product.warranty|default:'Ask showroom' }}</b></div>
+      {% if product.motor_power %}<div><small>Motor</small><b>{{ product.motor_power }}</b></div>{% endif %}
+      {% if product.top_speed %}<div><small>Top Speed</small><b>{{ product.top_speed }}</b></div>{% endif %}
+      {% if product.charging_time %}<div><small>Charging</small><b>{{ product.charging_time }}</b></div>{% endif %}
+    </div>
+    <div class="price price-large">
+      {% if product.offer_price %}<span class="mrp">MRP ₹{{ product.price|floatformat:0 }}</span>{% endif %}
+      <strong>{% if product.price %}₹ {{ product.display_price|floatformat:0 }}{% else %}Price on enquiry{% endif %}</strong>
+      {% if product.discount_percent %}<span class="discount">{{ product.discount_percent|floatformat:0 }}% OFF</span>{% endif %}
+    </div>
+    {% if product.emi_enabled and emi_plans %}
+      <div class="emi-panel">
+        <h3>EMI Options</h3>
+        <p>Choose an available tenure. Final financing approval is subject to the finance partner.</p>
+        <div class="emi-grid">
+          {% for plan in emi_plans %}
+            <div class="emi-card"><b>{{ plan.tenure_months }} months</b><strong>₹{{ plan.monthly_emi|floatformat:0 }}/month</strong><small>{{ plan.interest_rate }}% p.a. · Down payment ₹{{ plan.down_payment|floatformat:0 }}</small></div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+    <div class="hero-actions"><a class="btn primary" href="{% url 'book_order' product.slug %}">Book Order</a><a class="btn ghost darktext" href="{% url 'product_enquiry' product.slug %}">Enquire</a></div>
+  </div>
+</section>
+<section class="wrap section"><div class="section-head compact"><h2>Related models</h2></div><div class="product-grid">{% for p in related %}<article class="product-card mini"><a href="{% url 'product_detail' p.slug %}" class="product-image-link"><div class="product-image">{% if p.image_data %}<img src="{{ p.image_data }}" alt="{{ p.name }}">{% else %}<div class="vehicle-art"><span>⚡</span><b>{{ p.name }}</b></div>{% endif %}</div></a><div class="product-body"><h3>{{ p.name }}</h3><a class="textlink" href="{% url 'product_detail' p.slug %}">View →</a></div></article>{% endfor %}</div></section>
+<script>
+function setMainImage(src){
+  const image=document.getElementById('mainImage');
+  if(image){ image.src=src; image.parentElement.href=src; }
+}
+</script>
+{% endblock %}
