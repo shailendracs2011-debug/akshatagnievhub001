@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
-import json
+import io, os, base64, tempfile
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.views import LoginView, LogoutView
@@ -8,8 +8,11 @@ from django.db.models import Q, Sum, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from openpyxl import Workbook
-from xhtml2pdf import pisa
-from django.template.loader import render_to_string
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet
 from .forms import EnquiryForm, OrderForm, ServiceQueryForm, SupportQueryForm, SiteSettingForm
 from .models import Category, Product, ProductGallery, GalleryImage, Enquiry, Order, Sale, Purchase, Expense, LedgerEntry, SiteSetting, ServiceQuery, SupportQuery
 
@@ -210,16 +213,16 @@ def erp_settings(request):
 def invoice_pdf(request, pk):
     sale = get_object_or_404(Sale.objects.select_related('product', 'customer', 'order'), pk=pk)
     site = settings_obj()
+
     logo_path = None
     signature_path = None
     try:
-        import base64, tempfile, os
         from PIL import Image
-        import io
+        import io as _io
         tmp_dir = tempfile.gettempdir()
         if site.logo_data and site.logo_data.startswith('data:'):
             header, data = site.logo_data.split(',', 1)
-            img = Image.open(io.BytesIO(base64.b64decode(data)))
+            img = Image.open(_io.BytesIO(base64.b64decode(data)))
             if img.mode in ('RGBA', 'P'):
                 img = img.convert('RGB')
             fd, logo_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
@@ -227,7 +230,7 @@ def invoice_pdf(request, pk):
                 img.save(f, 'JPEG', quality=90)
         if site.signature_data and site.signature_data.startswith('data:'):
             header, data = site.signature_data.split(',', 1)
-            img = Image.open(io.BytesIO(base64.b64decode(data)))
+            img = Image.open(_io.BytesIO(base64.b64decode(data)))
             if img.mode in ('RGBA', 'P'):
                 img = img.convert('RGB')
             fd, signature_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
@@ -236,17 +239,73 @@ def invoice_pdf(request, pk):
     except Exception:
         logo_path = None
         signature_path = None
-    context = {
-        'sale': sale,
-        'site': site,
-        'request': request,
-        'logo_path': logo_path,
-        'signature_path': signature_path,
-    }
-    html = render_to_string('erp/invoice.html', context)
-    resp = HttpResponse(content_type='application/pdf')
-    resp['Content-Disposition'] = f'attachment; filename="invoice-{sale.invoice_no}.pdf"'
-    pisa.CreatePDF(html, dest=resp)
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
+    styles = getSampleStyleSheet()
+    story = []
+
+    story.append(Paragraph(f"<b>{site.business_name or 'Akshat Agni EV Motors'}</b>", styles['Title']))
+    story.append(Paragraph(f"{site.address or ''}<br/>Phone: {site.phone_primary or ''} / {site.phone_secondary or ''}<br/>GSTIN: {site.gst_number or '-'}<br/>{site.website or ''}", styles['Normal']))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("<b>Invoice</b>", styles['Heading2']))
+    story.append(Spacer(1, 12))
+
+    story.append(Paragraph(f"<b>Bill To:</b><br/>{sale.customer_name}<br/>{getattr(sale.customer, 'address', '') or ''}<br/>{getattr(sale.customer, 'mobile', '') or ''}<br/>{getattr(sale.customer, 'email', '') or ''}", styles['Normal']))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(f"<b>Invoice No:</b> {sale.invoice_no}<br/><b>Date:</b> {sale.sale_date.strftime('%d %b %Y') if sale.sale_date else ''}<br/><b>Payment Mode:</b> {sale.payment_mode}<br/><b>Payment Status:</b> {sale.payment_status}", styles['Normal']))
+    story.append(Spacer(1, 12))
+
+    data = [
+        ['#', 'Product', 'Qty', 'MRP', 'Discount', 'Processing Fee', 'GST', 'Other Charges', 'Amount'],
+        ['1', sale.product.name if sale.product else '-', str(sale.quantity), f"{sale.mrp_amount:.2f}", f"{sale.discount_amount:.2f}", f"{sale.processing_fee:.2f}", f"{sale.gst_amount:.2f}", f"{sale.other_charges:.2f}", f"{sale.amount:.2f}"],
+    ]
+    t = Table(data, colWidths=[20, 80, 30, 45, 45, 55, 45, 55, 55])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f7f5')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dce8e1')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 12))
+
+    totals_data = [
+        ['Subtotal', f"{sale.amount:.2f}"],
+        ['Paid Amount', f"{sale.paid_amount:.2f}"],
+        ['Balance Due', f"{sale.balance_amount:.2f}"],
+    ]
+    tt = Table(totals_data, colWidths=[100, 80])
+    tt.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#0b6b43')),
+    ]))
+    story.append(tt)
+    story.append(Spacer(1, 12))
+
+    if sale.other_charges_description:
+        story.append(Paragraph(f"<b>Other Charges Note:</b> {sale.other_charges_description}", styles['Normal']))
+    if sale.notes:
+        story.append(Paragraph(f"<b>Notes:</b> {sale.notes}", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    footer_data = [
+        [Paragraph(f"<b>Authorized Signatory:</b> {site.signatory_name or ''}<br/><b>Authorized Person:</b> {site.authorized_person or ''}", styles['Normal']), ''],
+    ]
+    if signature_path:
+        footer_data[0][1] = RLImage(signature_path, width=80, height=40)
+    ft = Table(footer_data, colWidths=[300, 100])
+    ft.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('ALIGN', (1, 0), (1, -1), 'CENTER')]))
+    story.append(ft)
+
+    doc.build(story)
+    pdf = buffer.getvalue()
+    buffer.close()
     try:
         if logo_path and os.path.exists(logo_path):
             os.remove(logo_path)
@@ -254,6 +313,8 @@ def invoice_pdf(request, pk):
             os.remove(signature_path)
     except Exception:
         pass
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    resp['Content-Disposition'] = f'attachment; filename="invoice-{sale.invoice_no}.pdf"'
     return resp
 
 
