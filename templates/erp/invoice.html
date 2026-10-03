@@ -37,7 +37,7 @@
     <table>
       <tr>
         <td style="width:50%">
-          {% if site.logo_data %}<img src="{{ site.logo_data }}" class="logo" alt="logo">{% endif %}
+          {% if logo_path %}<img src="{{ logo_path }}" class="logo" alt="logo">{% endif %}
           <div style="margin-top:8px;font-weight:900">{{ site.business_name }}</div>
         </td>
         <td class="company">
@@ -125,7 +125,7 @@
           <p><strong>Authorized Person:</strong> {{ site.authorized_person|default:'' }}</p>
         </td>
         <td class="signature">
-          {% if site.signature_data %}<img src="{{ site.signature_data }}" alt="signature">{% endif %}
+          {% if signature_path %}<img src="{{ signature_path }}" alt="signature">{% endif %}
           <p>{{ site.signatory_name|default:'Authorized Signatory' }}</p>
         </td>
       </tr>

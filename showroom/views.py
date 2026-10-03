@@ -210,34 +210,50 @@ def erp_settings(request):
 def invoice_pdf(request, pk):
     sale = get_object_or_404(Sale.objects.select_related('product', 'customer', 'order'), pk=pk)
     site = settings_obj()
-
-    def _pdf_image_callback(uri, rel):
-        if uri.startswith('data:'):
-            try:
-                import base64, tempfile, os
-                from PIL import Image
-                import io
-                header, data = uri.split(',', 1)
-                img = Image.open(io.BytesIO(base64.b64decode(data)))
-                if img.mode in ('RGBA', 'P'):
-                    img = img.convert('RGB')
-                fd, path = tempfile.mkstemp(suffix='.jpg')
-                with os.fdopen(fd, 'wb') as f:
-                    img.save(f, 'JPEG', quality=90)
-                return path
-            except Exception:
-                return None
-        return uri
-
+    logo_path = None
+    signature_path = None
+    try:
+        import base64, tempfile, os
+        from PIL import Image
+        import io
+        tmp_dir = tempfile.gettempdir()
+        if site.logo_data and site.logo_data.startswith('data:'):
+            header, data = site.logo_data.split(',', 1)
+            img = Image.open(io.BytesIO(base64.b64decode(data)))
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            fd, logo_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
+            with os.fdopen(fd, 'wb') as f:
+                img.save(f, 'JPEG', quality=90)
+        if site.signature_data and site.signature_data.startswith('data:'):
+            header, data = site.signature_data.split(',', 1)
+            img = Image.open(io.BytesIO(base64.b64decode(data)))
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            fd, signature_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
+            with os.fdopen(fd, 'wb') as f:
+                img.save(f, 'JPEG', quality=90)
+    except Exception:
+        logo_path = None
+        signature_path = None
     context = {
         'sale': sale,
         'site': site,
         'request': request,
+        'logo_path': logo_path,
+        'signature_path': signature_path,
     }
     html = render_to_string('erp/invoice.html', context)
     resp = HttpResponse(content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="invoice-{sale.invoice_no}.pdf"'
-    pisa.CreatePDF(html, dest=resp, link_callback=_pdf_image_callback)
+    pisa.CreatePDF(html, dest=resp)
+    try:
+        if logo_path and os.path.exists(logo_path):
+            os.remove(logo_path)
+        if signature_path and os.path.exists(signature_path):
+            os.remove(signature_path)
+    except Exception:
+        pass
     return resp
 
 
