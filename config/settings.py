@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-only-change-this-secret-key')
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'false'
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,.vercel.app,akshatagnievhub.in,www.akshatagnievhub.in').split(',') if h.strip()]
 CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv('CSRF_TRUSTED_ORIGINS', 'https://akshatagnievhub.in,https://www.akshatagnievhub.in').split(',') if x.strip()]
