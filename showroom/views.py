@@ -212,13 +212,11 @@ def invoice_pdf(request, pk):
     site = settings_obj()
     logo_path = None
     signature_path = None
-    tmp_dir = None
     try:
         import base64, tempfile, os
         from PIL import Image
         import io
-        tmp_dir = os.path.join(os.path.dirname(__file__), 'tmp')
-        os.makedirs(tmp_dir, exist_ok=True)
+        tmp_dir = tempfile.gettempdir()
         if site.logo_data and site.logo_data.startswith('data:'):
             header, data = site.logo_data.split(',', 1)
             img = Image.open(io.BytesIO(base64.b64decode(data)))
