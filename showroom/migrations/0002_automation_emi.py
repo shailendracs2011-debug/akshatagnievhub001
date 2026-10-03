@@ -62,7 +62,6 @@ class Migration(migrations.Migration):
         migrations.AddField(model_name='sale', name='auto_generated_from_order', field=models.BooleanField(default=False)),
         migrations.AddField(model_name='sale', name='stock_applied_quantity', field=models.PositiveIntegerField(default=0, editable=False)),
         migrations.AddField(model_name='sale', name='stock_applied_product_id', field=models.PositiveBigIntegerField(blank=True, editable=False, null=True)),
-        migrations.AddField(model_name='sale', name='payment_mode', field=models.CharField(choices=[('Cash','Cash'),('UPI','UPI'),('Card','Card'),('Bank','Bank Transfer'),('Credit','Credit'),('EMI','EMI')], default='Cash', max_length=30)),
         migrations.AddField(model_name='sale', name='paid_amount', field=models.DecimalField(decimal_places=2, default=0, max_digits=12)),
         migrations.AddField(model_name='purchase', name='payment_mode', field=models.CharField(choices=[('Cash','Cash'),('UPI','UPI'),('Card','Card'),('Bank','Bank Transfer'),('Credit','Credit')], default='Cash', max_length=30)),
         migrations.AddField(model_name='purchase', name='paid_amount', field=models.DecimalField(decimal_places=2, default=0, max_digits=12)),
