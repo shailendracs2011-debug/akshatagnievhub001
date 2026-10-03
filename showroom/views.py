@@ -215,20 +215,26 @@ def invoice_pdf(request, pk):
     tmp_dir = None
     try:
         import base64, tempfile, os
+        from PIL import Image
+        import io
         tmp_dir = os.path.join(os.path.dirname(__file__), 'tmp')
         os.makedirs(tmp_dir, exist_ok=True)
         if site.logo_data and site.logo_data.startswith('data:'):
             header, data = site.logo_data.split(',', 1)
-            ext = header.split('/')[-1].split(';')[0] or 'png'
-            fd, logo_path = tempfile.mkstemp(suffix='.' + ext, dir=tmp_dir)
+            img = Image.open(io.BytesIO(base64.b64decode(data)))
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            fd, logo_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
             with os.fdopen(fd, 'wb') as f:
-                f.write(base64.b64decode(data))
+                img.save(f, 'JPEG', quality=90)
         if site.signature_data and site.signature_data.startswith('data:'):
             header, data = site.signature_data.split(',', 1)
-            ext = header.split('/')[-1].split(';')[0] or 'png'
-            fd, signature_path = tempfile.mkstemp(suffix='.' + ext, dir=tmp_dir)
+            img = Image.open(io.BytesIO(base64.b64decode(data)))
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            fd, signature_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
             with os.fdopen(fd, 'wb') as f:
-                f.write(base64.b64decode(data))
+                img.save(f, 'JPEG', quality=90)
     except Exception:
         logo_path = None
         signature_path = None

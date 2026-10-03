@@ -1,6 +1,6 @@
 {
   "framework": "django",
-  "buildCommand": "python manage.py collectstatic --noinput && python manage.py migrate --noinput",
+  "buildCommand": "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput",
   "outputDirectory": "staticfiles",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index.py" }
