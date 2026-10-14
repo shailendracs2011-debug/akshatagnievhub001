@@ -33,3 +33,10 @@ class SiteSetting(TimeStamped):
 
     def __str__(self):
         return self.business_name
+
+class VisitorCount(models.Model):
+    count = models.PositiveBigIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Visitors: {self.count}'
