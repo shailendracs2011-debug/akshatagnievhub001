@@ -4,7 +4,7 @@ import io, os, base64, tempfile, json
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.views import LoginView, LogoutView
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from openpyxl import Workbook
@@ -14,7 +14,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet
 from .forms import EnquiryForm, OrderForm, ServiceQueryForm, SupportQueryForm, SiteSettingForm
-from .models import Category, Product, ProductGallery, GalleryImage, Enquiry, Order, Sale, Purchase, Expense, LedgerEntry, SiteSetting, ServiceQuery, SupportQuery
+from .models import Category, Product, ProductGallery, GalleryImage, Enquiry, Order, Sale, Purchase, Expense, LedgerEntry, SiteSetting, ServiceQuery, SupportQuery, VisitorCount
 
 
 def settings_obj():
@@ -30,7 +30,10 @@ def get_lang(request):
 def base_context(request):
     lang = get_lang(request)
     gallery = GalleryImage.objects.filter(published=True).order_by('sort_order', '-created_at')
-    return {'site': settings_obj(), 'lang': lang, 'gallery_items': gallery[:8]}
+    obj, _ = VisitorCount.objects.get_or_create(pk=1)
+    VisitorCount.objects.filter(pk=obj.pk).update(count=F('count') + 1)
+    obj.refresh_from_db()
+    return {'site': settings_obj(), 'lang': lang, 'gallery_items': gallery[:8], 'visitor_count': obj.count}
 
 
 def language(request, code):
