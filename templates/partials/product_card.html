@@ -1,0 +1,57 @@
+{% load showroom_tags %}
+<article class="product-card">
+  <a href="{% url 'product_detail' p.slug %}" class="product-image-link" tabindex="-1" aria-hidden="true">
+    <div class="product-image">
+      {% if p.image_data %}
+        <img src="{{ p.image_data }}" alt="{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}" loading="lazy" decoding="async" width="400" height="300">
+      {% else %}
+        <div class="image-fallback">
+          {% include 'partials/vehicle_placeholder.html' %}
+          <span>{% if lang == 'hi' %}{{ t.pc_placeholder_image|default:ph.to_be_updated }}{% else %}{{ ph.to_be_updated }}{% endif %}</span>
+        </div>
+      {% endif %}
+      {% if p.coming_soon %}<span class="coming-flag">{{ t.pc_coming_soon }}</span>{% endif %}
+    </div>
+  </a>
+
+  <div class="product-body">
+    <span class="product-tag">{{ p.category.name }}{% if p.segment %} · {{ p.segment }}{% endif %}</span>
+    <h3><a href="{% url 'product_detail' p.slug %}">{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}</a></h3>
+
+    <p class="product-desc">
+      {% if lang == 'hi' %}{{ p.short_description_hi|default:p.short_description }}{% else %}{{ p.short_description }}{% endif %}
+      {% if not p.short_description and not p.short_description_hi %}<span class="placeholder-text">{{ ph.to_be_updated }}</span>{% endif %}
+    </p>
+
+    <div class="chips">
+      {% for key, value in p.spec_chips %}
+        <span class="chip">{{ t|lookup:key }} <b>{{ value }}</b></span>
+      {% empty %}
+        <span class="chip chip-placeholder">{{ ph.to_be_updated }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="price-row">
+      {% if p.has_price %}
+        {% if p.offer_price %}<span class="mrp">₹{{ p.price|floatformat:0 }}</span>{% endif %}
+        <strong>₹{{ p.display_price|floatformat:0 }}</strong>
+        <span class="price-label">{% if p.price_label == 'On-road' %}{{ t.pc_on_road }}{% else %}{{ t.pc_ex_showroom }}{% endif %}</span>
+        {% if p.discount_percent %}<span class="discount">{{ p.discount_percent|floatformat:0 }}% OFF</span>{% endif %}
+      {% else %}
+        <span class="call-price">{{ t.pc_call_price }}</span>
+      {% endif %}
+    </div>
+
+    <div class="product-foot">
+      <label class="compare-check">
+        <input type="checkbox" data-compare-slug="{{ p.slug }}" data-compare-name="{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}" aria-label="{{ t.pc_compare_label|default:p.name }}">
+        {{ t.pc_compare }}
+      </label>
+      {% if p.has_price %}
+        <a class="product-cta" href="{% url 'product_detail' p.slug %}">{{ t.compare_view|default:'Details' }} →</a>
+      {% else %}
+        <a class="product-cta" href="{{ p|whatsapp_url:site }}" target="_blank" rel="noopener">{{ t.pc_whatsapp }}</a>
+      {% endif %}
+    </div>
+  </div>
+</article>

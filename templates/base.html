@@ -1,12 +1,156 @@
-{% load static %}
-<!doctype html><html lang="{{ lang|default:'en' }}"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}Akshat Agni EV Motors{% endblock %}</title>
+{% load static %}<!doctype html>
+<html lang="{{ lang|default:'en' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ site.business_name }}{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}{{ site.tagline }} — {{ site.address }}. Electric scooters, sales, service, batteries and spare parts.{% endblock %}">
+<meta name="theme-color" content="#06301F">
+<link rel="preload" href="{% static 'fonts/noto-sans-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{% static 'css/fonts.css' %}">
 <link rel="stylesheet" href="{% static 'css/site.css' %}">
-</head><body>
-<header class="top"><div class="wrap nav"><a class="brand" href="{% url 'home' %}">{% if site.logo_data %}<img src="{{ site.logo_data }}" alt="logo">{% else %}<span class="brandmark">AA</span>{% endif %}<span><b>{{ site.business_name }}</b><small>EV MOTORS • MAIHAR</small></span></a>
-<nav><a href="{% url 'home' %}">{% if lang == 'hi' %}होम{% else %}Home{% endif %}</a><a href="{% url 'category' 'e-scooter' %}">{% if lang == 'hi' %}ई-स्कूटर{% else %}E-Scooters{% endif %}</a><a href="{% url 'category' 'e-auto-7-seater' %}">{% if lang == 'hi' %}ई-ऑटो{% else %}E-Auto{% endif %}</a><a href="{% url 'gallery' %}">{% if lang == 'hi' %}गैलरी{% else %}Gallery{% endif %}</a><a href="{% url 'service' %}">{% if lang == 'hi' %}सर्विस{% else %}Service{% endif %}</a><a href="{% url 'support' %}">{% if lang == 'hi' %}सपोर्ट{% else %}Support{% endif %}</a></nav>
-<div class="actions"><a class="lang" href="{% url 'language' 'en' %}">EN</a><a class="lang" href="{% url 'language' 'hi' %}">हि</a><a class="pill" href="tel:{{ site.phone_primary }}">Call</a><a class="pill" href="mailto:info@akshatagnievhub.in">Email</a></div></div></header>
+<script src="{% static 'js/site.js' %}" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">{{ t.skip_to_content }}</a>
+
+<header class="top">
+  <div class="wrap nav">
+    <a class="brand" href="{% url 'home' %}">
+      {% if site.logo_data %}<img src="{{ site.logo_data }}" alt="{{ site.business_name }} logo" width="40" height="40">{% else %}<span class="brandmark" aria-hidden="true">AA</span>{% endif %}
+      <span><b>{{ site.business_name }}</b><small>EV MOTORS • MAIHAR</small></span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="Main">
+      <a href="{% url 'home' %}">{{ t.nav_home }}</a>
+      <a href="{% url 'category' 'e-scooter' %}">{{ t.nav_scooters }}</a>
+      {% if has_eauto %}<a href="{% url 'category' 'e-auto-7-seater' %}">{{ t.nav_autos }}</a>{% endif %}
+      <a href="{% url 'gallery' %}">{{ t.nav_gallery }}</a>
+      <a href="{% url 'service' %}">{{ t.nav_service }}</a>
+      <a href="{% url 'support' %}">{{ t.nav_support }}</a>
+    </nav>
+
+    <div class="header-actions">
+      <div class="lang-toggle" role="group" aria-label="{{ t.lang_switch }}">
+        <a href="{% url 'language' 'en' %}" hreflang="en" lang="en" aria-current="{% if lang == 'en' %}true{% else %}false{% endif %}">EN</a>
+        <a href="{% url 'language' 'hi' %}" hreflang="hi" lang="hi" aria-current="{% if lang == 'hi' %}true{% else %}false{% endif %}">हि</a>
+      </div>
+      <a class="call-pill" href="tel:{{ site.phone_primary }}" aria-label="{{ t.nav_call }} {{ site.phone_primary }}">☎ {{ t.nav_call }}</a>
+      <button class="burger" type="button" data-drawer-open aria-label="{{ t.nav_open_menu }}" aria-haspopup="dialog" aria-controls="nav-drawer">
+        <span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="drawer" id="nav-drawer" data-open="false" aria-hidden="true" role="dialog" aria-modal="true" aria-label="{{ t.nav_menu }}">
+  <div class="drawer-backdrop"></div>
+  <div class="drawer-panel">
+    <div class="drawer-head">
+      <strong>{{ site.business_name }}</strong>
+      <button class="drawer-close" type="button" aria-label="{{ t.nav_close_menu }}">×</button>
+    </div>
+    <nav aria-label="{{ t.nav_menu }}">
+      <a href="{% url 'home' %}">{{ t.nav_home }}</a>
+      <a href="{% url 'category' 'e-scooter' %}">{{ t.nav_scooters }}</a>
+      {% if has_eauto %}<a href="{% url 'category' 'e-auto-7-seater' %}">{{ t.nav_autos }}</a>{% endif %}
+      <a href="{% url 'gallery' %}">{{ t.nav_gallery }}</a>
+      <a href="{% url 'service' %}">{{ t.nav_service }}</a>
+      <a href="{% url 'support' %}">{{ t.nav_support }}</a>
+      <a href="{% url 'enquiry' %}">{{ t.enquiry_title }}</a>
+      <a href="{% url 'track_request' %}">{{ t.track_title }}</a>
+    </nav>
+    <div class="drawer-foot">
+      <a class="btn btn-brand btn-block" href="tel:{{ site.phone_primary }}">☎ {{ site.nav_call }}</a>
+      <a class="btn btn-wa btn-block" href="{{ wa_link }}" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+</div>
+
+{% if site.offer_banner_text or site.offer_banner_text_hi %}
+<div class="offer-banner">
+  <div class="wrap">
+    {% if site.offer_banner_image %}<img src="{{ site.offer_banner_image }}" alt="" width="40" height="40" loading="lazy" decoding="async">{% endif %}
+    <p>{% if lang == 'hi' %}{{ site.offer_banner_text_hi|default:site.offer_banner_text }}{% else %}{{ site.offer_banner_text }}{% endif %}</p>
+    {% if site.offer_banner_link %}<a href="{{ site.offer_banner_link }}">→</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% if messages %}<div class="wrap messages">{% for m in messages %}<div class="msg">{{ m }}</div>{% endfor %}</div>{% endif %}
-<main>{% block content %}{% endblock %}</main>
-<footer><div class="wrap foot"><div><b>{{ site.business_name }}</b><p>{{ site.address }}</p></div><div><p>📞 {{ site.phone_primary }}{% if site.phone_secondary %} • {{ site.phone_secondary }}{% endif %}</p><p>WhatsApp: {{ site.whatsapp }}</p><p>📧 <a href="mailto:info@akshatagnievhub.in">info@akshatagnievhub.in</a></p></div><div><p><a href="{% url 'enquiry' %}">General Enquiry</a> · <a href="{% url 'service' %}">Service</a> · <a href="{% url 'support' %}">Support</a></p><p>📷 <a href="https://www.instagram.com/akshatagnievhub" target="_blank" rel="noopener">Instagram</a></p><p>👁️ {{ visitor_count }} visitors</p></div></div><div class="copyright">© Copyright 2026 {{ site.business_name }} - All Rights Reserved</div></footer>
-</body></html>
+
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div class="wrap foot-grid">
+    <div>
+      <h3>{{ site.business_name }}</h3>
+      <p>{{ site.address }}{% if site.landmark %} — {% if lang == 'hi' %}{{ site.landmark_hi|default:site.landmark }}{% else %}{{ site.landmark }}{% endif %}{% endif %}</p>
+      <p>{% if lang == 'hi' %}{{ site.opening_hours_hi|default:ph.showroom_timings }}{% else %}{{ site.opening_hours|default:ph.showroom_timings }}{% endif %}</p>
+      <p>
+        <a class="foot-tel" href="tel:{{ site.phone_primary }}">☎ {{ site.phone_primary }}</a><br>
+        {% if site.phone_secondary %}<a class="foot-tel" href="tel:{{ site.phone_secondary }}">☎ {{ site.phone_secondary }}</a>{% endif %}
+      </p>
+      <p><a class="foot-tel" href="{{ wa_link }}" target="_blank" rel="noopener">WhatsApp {{ site.whatsapp }}</a></p>
+      <div id="map-holder">
+        <button class="map-button" type="button" data-map-src="{{ site.map_embed_url }}" data-map-title="{{ site.business_name }} location map">
+          ▤ {{ t.foot_map }}
+        </button>
+        <p class="note" style="margin-top:8px">{{ t.foot_map_note }}</p>
+      </div>
+    </div>
+
+    <div>
+      <h3>{{ t.foot_explore }}</h3>
+      <ul class="foot-links">
+        <li><a href="{% url 'home' %}">{{ t.nav_home }}</a></li>
+        <li><a href="{% url 'category' 'e-scooter' %}">{{ t.nav_scooters }}</a></li>
+        {% if has_eauto %}<li><a href="{% url 'category' 'e-auto-7-seater' %}">{{ t.nav_autos }}</a></li>{% endif %}
+        <li><a href="{% url 'gallery' %}">{{ t.nav_gallery }}</a></li>
+        <li><a href="{% url 'compare' %}">{{ t.compare_title }}</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h3>{{ t.foot_help }}</h3>
+      <ul class="foot-links">
+        <li><a href="{% url 'service' %}">{{ t.tile_service_cta }}</a></li>
+        <li><a href="{% url 'ask_part' %}">{{ t.tile_parts_cta }}</a></li>
+        <li><a href="{% url 'track_request' %}">{{ t.tile_support_cta }}</a></li>
+        <li><a href="{% url 'enquiry' %}">{{ t.enquiry_title }}</a></li>
+        <li><a href="{% url 'test_ride' %}">{{ t.pd_book_test_ride }}</a></li>
+      </ul>
+      {% if site.website %}<p><a href="{{ site.website }}" target="_blank" rel="noopener">{{ site.website }}</a></p>{% endif %}
+    </div>
+  </div>
+  <div class="copyright">© {% now "Y" %} {{ site.business_name }} — {{ t.foot_rights }}</div>
+</footer>
+
+<div class="action-bar" aria-label="{{ t.foot_contact }}">
+  <a class="btn btn-brand" href="tel:{{ site.phone_primary }}">☎ {{ t.foot_call }}</a>
+  <a class="btn btn-wa" href="{{ wa_link }}" target="_blank" rel="noopener">WhatsApp</a>
+</div>
+
+<div class="compare-tray" id="compare-tray" data-visible="false" aria-live="polite">
+  <div class="wrap">
+    <div class="compare-slots" id="compare-slots"></div>
+    <p id="compare-count"></p>
+    <a class="btn btn-primary btn-sm" id="compare-cta" href="#">{{ t.compare_cta }}</a>
+    <button class="btn btn-outline btn-sm" id="compare-clear" type="button" hidden>{{ t.compare_clear }}</button>
+  </div>
+</div>
+<p id="compare-note" class="sr-only" data-max="{{ t.compare_max }}" aria-live="polite" hidden></p>
+
+<div class="lightbox" id="lightbox" data-open="false" role="dialog" aria-modal="true" aria-label="{{ t.nav_gallery }}">
+  <button class="lightbox-close" type="button" aria-label="{{ t.nav_close_menu }}">×</button>
+  <div class="lightbox-backdrop"></div>
+  <div>
+    <img id="lightbox-img" src="" alt="">
+    <p class="lightbox-cap" id="lightbox-cap"></p>
+  </div>
+</div>
+
+</body>
+</html>

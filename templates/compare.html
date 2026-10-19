@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load showroom_tags %}
+{% block title %}{{ t.compare_title }} | {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">{{ t.compare_title }}</span>
+    <h1>{{ t.compare_title }}</h1>
+    <p>{{ t.compare_sub }}</p>
+  </div>
+</section>
+
+<section class="wrap section">
+  {% if products|length >= 2 %}
+    <div class="table-scroll" style="overflow-x:auto">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ t.compare_spec }}</th>
+            {% for p in products %}
+              <th scope="col">
+                <div class="compare-head-img">
+                  {% if p.image_data %}
+                    <img src="{{ p.image_data }}" alt="{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}" loading="lazy" decoding="async">
+                  {% else %}
+                    {% include 'partials/vehicle_placeholder.html' %}
+                  {% endif %}
+                </div>
+                <b>{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}</b>
+                <div style="margin-top:6px">
+                  <a class="product-cta" href="{% url 'product_detail' p.slug %}">{{ t.compare_view }} →</a>
+                </div>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">{{ t.pc_ex_showroom }}</th>
+            {% for p in products %}
+              <td>
+                {% if p.has_price %}
+                  <strong>₹{{ p.display_price|floatformat:0 }}</strong>
+                  <br><small class="muted">{% if p.price_label == 'On-road' %}{{ t.pc_on_road }}{% else %}{{ t.pc_ex_showroom }}{% endif %}</small>
+                {% else %}
+                  <b>{{ t.pc_call_price }}</b>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th scope="row">{{ t.compare_specs }}</th>
+            {% for p in products %}
+              <td>
+                {% for key, value in p.spec_rows %}
+                  <div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0">
+                    <span class="muted">{{ t|lookup:key }}</span><b>{{ value }}</b>
+                  </div>
+                {% empty %}
+                  <span class="placeholder-text">{{ ph.to_be_updated }}</span>
+                {% endfor %}
+              </td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th scope="row">{{ t.pd_who_for }}</th>
+            {% for p in products %}
+              <td>{% if lang == 'hi' %}{{ p.who_is_this_for_hi|default:p.who_is_this_for }}{% else %}{{ p.who_is_this_for }}{% endif %}</td>
+            {% endfor %}
+          </tr>
+          <tr>
+            <th scope="row"></th>
+            {% for p in products %}
+              <td>
+                <div class="btn-row">
+                  <a class="btn btn-brand btn-sm" href="{% url 'product_test_ride' p.slug %}">{{ t.pd_book_test_ride }}</a>
+                  <a class="btn btn-wa btn-sm" href="{{ p|whatsapp_url:site }}" target="_blank" rel="noopener">{{ t.compare_wa }}</a>
+                </div>
+              </td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:16px"><a class="textlink" href="{% url 'category' 'e-scooter' %}">← {{ t.compare_back }}</a></p>
+  {% else %}
+    <div class="empty">
+      <p>{{ t.compare_empty }}</p>
+      <p><a class="btn btn-brand" href="{% url 'category' 'e-scooter' %}">{{ t.tile_sales_cta }}</a></p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

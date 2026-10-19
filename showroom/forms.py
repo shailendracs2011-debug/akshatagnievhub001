@@ -1,4 +1,5 @@
 import base64
+import io
 
 from django import forms
 
@@ -12,16 +13,60 @@ from .models import (
     SiteSetting,
     SupportQuery,
     ProductEMIPlan,
+    Testimonial,
 )
+
+MAX_IMAGE_BYTES = 150 * 1024
+MAX_IMAGE_EDGE = 1600
 
 
 def image_to_data_url(uploaded):
+    """Convert an uploaded image into a compressed WebP data URL.
+
+    Photos are stored inside the database as data URLs so the site stays
+    portable between local SQLite and hosted PostgreSQL. Every upload is
+    re-encoded to WebP and capped at roughly 150 KB so pages stay fast on
+    a 4G connection.
+    """
     if not uploaded:
         return ''
-    raw = uploaded.read()
-    encoded = base64.b64encode(raw).decode('ascii')
-    content_type = getattr(uploaded, 'content_type', 'image/jpeg') or 'image/jpeg'
-    return f'data:{content_type};base64,{encoded}'
+    try:
+        from PIL import Image
+    except ImportError:
+        raw = uploaded.read()
+        encoded = base64.b64encode(raw).decode('ascii')
+        content_type = getattr(uploaded, 'content_type', 'image/jpeg') or 'image/jpeg'
+        return f'data:{content_type};base64,{encoded}'
+
+    uploaded.seek(0)
+    try:
+        image = Image.open(io.BytesIO(uploaded.read()))
+        image.load()
+    except Exception:
+        uploaded.seek(0)
+        raw = uploaded.read()
+        encoded = base64.b64encode(raw).decode('ascii')
+        content_type = getattr(uploaded, 'content_type', 'image/jpeg') or 'image/jpeg'
+        return f'data:{content_type};base64,{encoded}'
+
+    if image.mode in ('RGBA', 'LA', 'P'):
+        image = image.convert('RGBA')
+    else:
+        image = image.convert('RGB')
+
+    if max(image.size) > MAX_IMAGE_EDGE:
+        image.thumbnail((MAX_IMAGE_EDGE, MAX_IMAGE_EDGE), Image.LANCZOS)
+
+    payload = None
+    for quality in (82, 74, 66, 58, 50):
+        buffer = io.BytesIO()
+        image.save(buffer, 'WEBP', quality=quality, method=6)
+        payload = buffer.getvalue()
+        if len(payload) <= MAX_IMAGE_BYTES:
+            break
+
+    encoded = base64.b64encode(payload).decode('ascii')
+    return f'data:image/webp;base64,{encoded}'
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -44,6 +89,9 @@ class ProductAdminForm(forms.ModelForm):
             'image', 'sku', 'battery', 'range_text', 'warranty', 'motor_power',
             'top_speed', 'charging_time', 'seating_capacity', 'gst_percent',
             'booking_amount', 'emi_enabled',
+            'range_km', 'top_speed_kmph', 'battery_type', 'battery_warranty_years',
+            'load_capacity_kg', 'licence_required', 'colours',
+            'who_is_this_for', 'who_is_this_for_hi', 'price_label',
         ]
 
     def save(self, commit=True):
@@ -107,6 +155,30 @@ class GalleryImageAdminForm(forms.ModelForm):
         return obj
 
 
+class TestimonialAdminForm(forms.ModelForm):
+    """Admin form for customer testimonials, including the customer photo."""
+
+    photo = forms.ImageField(
+        required=False,
+        label='Customer Photo / ग्राहक फोटो',
+        help_text='Optional. A real photo builds trust. Keep it small, under 150 KB.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+
+    class Meta:
+        model = Testimonial
+        fields = ['name', 'town', 'vehicle', 'quote', 'photo', 'published', 'sort_order']
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        uploaded = self.cleaned_data.get('photo')
+        if uploaded:
+            obj.photo_data = image_to_data_url(uploaded)
+        if commit:
+            obj.save()
+        return obj
+
+
 class SiteSettingAdminForm(forms.ModelForm):
     """Admin form for business settings and replaceable homepage/logo images."""
 
@@ -114,6 +186,24 @@ class SiteSettingAdminForm(forms.ModelForm):
         required=False,
         label='Homepage Hero Image / होमपेज फोटो',
         help_text='Upload a new image to replace the current homepage hero photo.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+    hero_image_web = forms.ImageField(
+        required=False,
+        label='Hero Photo — Web (wide) / हीरो फोटो — वेब',
+        help_text='Wide photo for desktop screens. Landscape, under 150 KB.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+    hero_image_mobile = forms.ImageField(
+        required=False,
+        label='Hero Photo — Mobile (tall) / हीरो फोटो — मोबाइल',
+        help_text='Tall photo for phones. Portrait, under 150 KB.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+    offer_banner_image = forms.ImageField(
+        required=False,
+        label='Offer Banner Image / ऑफर बैनर फोटो',
+        help_text='Optional small image shown beside the offer banner text.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
     logo_image = forms.ImageField(
@@ -131,8 +221,17 @@ class SiteSettingAdminForm(forms.ModelForm):
         obj = super().save(commit=False)
         hero = self.cleaned_data.get('hero_image')
         logo = self.cleaned_data.get('logo_image')
+        hero_web = self.cleaned_data.get('hero_image_web')
+        hero_mobile = self.cleaned_data.get('hero_image_mobile')
+        banner_image = self.cleaned_data.get('offer_banner_image')
         if hero:
             obj.hero_image_data = image_to_data_url(hero)
+        if hero_web:
+            obj.hero_image_web = image_to_data_url(hero_web)
+        if hero_mobile:
+            obj.hero_image_mobile = image_to_data_url(hero_mobile)
+        if banner_image:
+            obj.offer_banner_image = image_to_data_url(banner_image)
         if logo:
             obj.logo_data = image_to_data_url(logo)
         if commit:
@@ -145,6 +244,94 @@ class EnquiryForm(forms.ModelForm):
         model = Enquiry
         fields = ['name', 'phone', 'email', 'product', 'message']
         widgets = {'message': forms.Textarea(attrs={'rows': 4})}
+
+
+class TestRideForm(forms.ModelForm):
+    """Book a test ride for a specific model."""
+
+    class Meta:
+        model = Enquiry
+        fields = ['name', 'phone', 'preferred_day', 'product']
+        widgets = {
+            'preferred_day': forms.DateInput(attrs={'type': 'date'}),
+        }
+        labels = {
+            'name': 'Your name / आपका नाम',
+            'phone': 'Mobile number / मोबाइल नंबर',
+            'preferred_day': 'Preferred day / पसंदीदा दिन',
+            'product': 'Model / मॉडल',
+        }
+
+    def clean_name(self):
+        value = (self.cleaned_data.get('name') or '').strip()
+        if not value:
+            raise forms.ValidationError('Name is required. / नाम ज़रूरी है।')
+        return value
+
+    def clean_phone(self):
+        value = (self.cleaned_data.get('phone') or '').strip()
+        digits = ''.join(ch for ch in value if ch.isdigit())
+        if len(digits) < 10:
+            raise forms.ValidationError('Enter a valid mobile number. / सही मोबाइल नंबर डालें।')
+        return value
+
+
+class PartRequestForm(forms.ModelForm):
+    """Ask the showroom for a spare part."""
+
+    vehicle_model = forms.CharField(
+        max_length=150,
+        required=False,
+        label='Vehicle model / वाहन मॉडल',
+        help_text='For example: SPORTS SL, E-Auto L5.',
+    )
+
+    class Meta:
+        model = Enquiry
+        fields = ['name', 'phone', 'vehicle_model', 'product', 'message']
+        widgets = {'message': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Which part do you need?'})}
+        labels = {
+            'name': 'Your name / आपका नाम',
+            'phone': 'Mobile number / मोबाइल नंबर',
+            'product': 'Model / मॉडल',
+            'message': 'Part needed / कौन सा पार्ट',
+        }
+
+    def clean_name(self):
+        value = (self.cleaned_data.get('name') or '').strip()
+        if not value:
+            raise forms.ValidationError('Name is required. / नाम ज़रूरी है।')
+        return value
+
+    def clean_phone(self):
+        value = (self.cleaned_data.get('phone') or '').strip()
+        digits = ''.join(ch for ch in value if ch.isdigit())
+        if len(digits) < 10:
+            raise forms.ValidationError('Enter a valid mobile number. / सही मोबाइल नंबर डालें।')
+        return value
+
+    def clean_message(self):
+        value = (self.cleaned_data.get('message') or '').strip()
+        if not value:
+            raise forms.ValidationError('Tell us which part you need. / बताएँ कौन सा पार्ट चाहिए।')
+        return value
+
+
+class TrackRequestForm(forms.Form):
+    """Look up a customer's own requests by mobile number."""
+
+    phone = forms.CharField(
+        max_length=30,
+        label='Mobile number / मोबाइल नंबर',
+        widget=forms.TextInput(attrs={'inputmode': 'tel', 'autocomplete': 'tel', 'placeholder': '10-digit mobile number'}),
+    )
+
+    def clean_phone(self):
+        value = (self.cleaned_data.get('phone') or '').strip()
+        digits = ''.join(ch for ch in value if ch.isdigit())
+        if len(digits) < 10:
+            raise forms.ValidationError('Enter a valid mobile number. / सही मोबाइल नंबर डालें।')
+        return digits
 
 
 class OrderForm(forms.ModelForm):
@@ -249,6 +436,15 @@ class SiteSettingForm(forms.ModelForm):
             'signatory_name', 'signature_image',
             'tagline', 'tagline_hi', 'about', 'about_hi',
             'hero_title', 'hero_title_hi', 'hero_subtitle', 'hero_subtitle_hi',
+            'landmark', 'landmark_hi', 'opening_hours', 'opening_hours_hi',
+            'google_maps_url', 'map_embed_url',
+            'offer_banner_text', 'offer_banner_text_hi', 'offer_banner_link',
+            'why_brand_authorised', 'why_brand_authorised_hi',
+            'why_warranty', 'why_warranty_hi',
+            'why_free_service', 'why_free_service_hi',
+            'why_local_centre', 'why_local_centre_hi',
+            'default_daily_km', 'default_petrol_price', 'default_petrol_mileage',
+            'default_electricity_rate', 'default_ev_km_per_unit',
         ]
 
     def save(self, commit=True):

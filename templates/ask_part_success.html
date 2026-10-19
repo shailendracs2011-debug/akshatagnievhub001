@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}{{ t.part_title }} | {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="wrap success">
+  <div class="success-icon" aria-hidden="true">✓</div>
+  <h1>{{ t.success_title }}</h1>
+  <p class="ref">{{ part_request.name }} — {{ part_request.phone }}</p>
+  <p>{{ t.success_body }}</p>
+  <div class="btn-row" style="justify-content:center">
+    <a class="btn btn-brand" href="tel:{{ site.phone_primary }}">☎ {{ t.success_call }}</a>
+    <a class="btn btn-outline" href="{% url 'home' %}">{{ t.success_home }}</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}{{ t.tr_title }} | {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">{{ t.tr_title }}</span>
+    <h1>{% if product %}{{ product.name }}{% else %}{{ t.tr_title }}{% endif %}</h1>
+    <p>{{ t.tr_sub }}</p>
+  </div>
+</section>
+
+<section class="wrap section">
+  <form method="post" class="form-card" style="max-width:640px">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div>
+        <label for="{{ form.name.id_for_label }}">{{ t.tr_name }} *</label>
+        {{ form.name }}
+        {{ form.name.errors }}
+      </div>
+      <div>
+        <label for="{{ form.phone.id_for_label }}">{{ t.tr_phone }} *</label>
+        {{ form.phone }}
+        {{ form.phone.errors }}
+      </div>
+      <div>
+        <label for="{{ form.preferred_day.id_for_label }}">{{ t.tr_day }}</label>
+        {{ form.preferred_day }}
+        {{ form.preferred_day.errors }}
+      </div>
+      <div>
+        <label for="{{ form.product.id_for_label }}">{{ t.tr_model }}</label>
+        {{ form.product }}
+        {{ form.product.errors }}
+      </div>
+    </div>
+    <button class="btn btn-brand" type="submit">{{ t.tr_submit }}</button>
+    <p class="note" style="margin:0">{{ t.tr_note }}</p>
+  </form>
+</section>
+{% endblock %}

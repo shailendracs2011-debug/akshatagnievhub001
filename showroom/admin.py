@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .forms import ProductAdminForm, ProductGalleryForm, GalleryImageAdminForm, SiteSettingAdminForm
+from .forms import ProductAdminForm, ProductGalleryForm, GalleryImageAdminForm, SiteSettingAdminForm, TestimonialAdminForm
 from .models import *
 
 admin.site.site_header = 'Akshat Agni EV Motors — Admin'
@@ -45,15 +45,23 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': (
                 'short_description', 'short_description_hi',
                 'description', 'description_hi',
-                'price', 'offer_price', 'cost_price', 'stock', 'gst_percent', 'booking_amount', 'emi_enabled'
+                'price', 'price_label', 'offer_price', 'cost_price', 'stock', 'gst_percent', 'booking_amount', 'emi_enabled'
             )
         }),
         ('Product Image', {
             'fields': ('image', 'image_preview'),
             'description': 'Upload or replace the main product photo here. The photo is stored with the product record and immediately appears on the website.'
         }),
-        ('Vehicle Details', {
-            'fields': ('battery', 'range_text', 'warranty', 'motor_power', 'top_speed', 'charging_time', 'seating_capacity')
+        ('Card Specs (shown on the product card)', {
+            'fields': ('range_km', 'top_speed_kmph', 'battery_type', 'battery_warranty_years'),
+            'description': 'These four values fill the spec chips on the product card. Leave a value empty to hide that chip.'
+        }),
+        ('Full Specification', {
+            'fields': ('battery', 'range_text', 'warranty', 'motor_power', 'top_speed', 'charging_time', 'load_capacity_kg', 'seating_capacity', 'licence_required', 'colours')
+        }),
+        ('Who is this for?', {
+            'fields': ('who_is_this_for', 'who_is_this_for_hi'),
+            'description': 'One line on the product page, for example "Best for daily office commutes up to 40 km".'
         }),
         ('Publishing', {
             'fields': ('featured', 'published', 'coming_soon')
@@ -101,9 +109,25 @@ class SupplierAdmin(admin.ModelAdmin):
 
 @admin.register(Enquiry)
 class EnquiryAdmin(admin.ModelAdmin):
-    list_display=('name','phone','product','status','created_at')
-    list_filter=('status',)
+    list_display=('name','phone','request_type','product','status','created_at')
+    list_filter=('status','request_type')
     search_fields=('name','phone','email')
+
+
+@admin.register(Testimonial)
+class TestimonialAdmin(admin.ModelAdmin):
+    form = TestimonialAdminForm
+    list_display=('name','town','vehicle','published','sort_order')
+    list_filter=('published',)
+    search_fields=('name','town','vehicle','quote')
+
+
+@admin.register(FAQItem)
+class FAQItemAdmin(admin.ModelAdmin):
+    list_display=('question','needs_confirmation','published','sort_order')
+    list_filter=('published','needs_confirmation')
+    search_fields=('question','answer')
+    fields=('question','question_hi','answer','answer_hi','needs_confirmation','published','sort_order')
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):

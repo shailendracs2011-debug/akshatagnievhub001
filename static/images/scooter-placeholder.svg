@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 150" width="240" height="150" fill="none" role="img" aria-label="Electric scooter illustration">
+  <g stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="48" cy="108" r="23"/>
+    <circle cx="192" cy="108" r="23"/>
+    <path d="M48 108h144"/>
+    <path d="M31 90c3-14 14-21 30-23h40"/>
+    <path d="M61 67c8-5 22-7 34-5l4 5"/>
+    <path d="M170 108c2-20 3-46 0-64"/>
+    <path d="M152 40h34"/>
+    <path d="M186 44v8"/>
+  </g>
+  <g fill="currentColor" opacity=".18">
+    <circle cx="48" cy="108" r="9"/>
+    <circle cx="192" cy="108" r="9"/>
+  </g>
+</svg>

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load showroom_tags %}
+{% block title %}{{ t.track_title }} | {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">{{ t.tile_support_title }}</span>
+    <h1>{{ t.track_title }}</h1>
+    <p>{{ t.track_sub }}</p>
+  </div>
+</section>
+
+<section class="wrap section">
+  <form method="post" class="form-card" style="max-width:520px">
+    {% csrf_token %}
+    <div>
+      <label for="{{ form.phone.id_for_label }}">{{ t.track_phone }} *</label>
+      {{ form.phone }}
+      {{ form.phone.errors }}
+    </div>
+    <button class="btn btn-brand" type="submit">{{ t.track_submit }}</button>
+  </form>
+
+  {% if searched %}
+    <div style="margin-top:32px">
+      {% if results %}
+        <h2>{{ t.track_results }}</h2>
+        <div class="table-scroll" style="overflow-x:auto">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th scope="col">{{ t.track_ref }}</th>
+                <th scope="col">{{ t.track_date }}</th>
+                <th scope="col">—</th>
+                <th scope="col">{{ t.track_status }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in results %}
+                <tr>
+                  <td><b>{{ r.ref }}</b></td>
+                  <td>{{ r.date|date:"d M Y" }}</td>
+                  <td>
+                    {% if r.kind == 'service' %}{{ t.track_service }}
+                    {% elif r.kind == 'support' %}{{ t.track_support }}
+                    {% elif r.kind == 'order' %}{{ t.track_order }}
+                    {% else %}{{ t.track_enquiry }}{% endif %}
+                    <br><small class="muted">{{ r.title }}{% if r.meta %} · {{ r.meta }}{% endif %}</small>
+                  </td>
+                  <td>{{ r.status }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty">{{ t.track_none }}</div>
+        <p style="margin-top:16px"><a class="btn btn-brand" href="tel:{{ site.phone_primary }}">☎ {{ site.phone_primary }}</a></p>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

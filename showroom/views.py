@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
-import io, os, base64, tempfile, json
+import io, os, base64, tempfile, json, urllib.parse
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.views import LoginView, LogoutView
@@ -13,8 +13,18 @@ from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet
-from .forms import EnquiryForm, OrderForm, ServiceQueryForm, SupportQueryForm, SiteSettingForm
-from .models import Category, Product, ProductGallery, GalleryImage, Enquiry, Order, Sale, Purchase, Expense, LedgerEntry, SiteSetting, ServiceQuery, SupportQuery, VisitorCount
+from .forms import (
+    EnquiryForm,
+    OrderForm,
+    PartRequestForm,
+    ServiceQueryForm,
+    SupportQueryForm,
+    SiteSettingForm,
+    TestRideForm,
+    TrackRequestForm,
+)
+from .i18n import PLACEHOLDER, ui
+from .models import Category, Product, ProductGallery, GalleryImage, Enquiry, Order, Sale, Purchase, Expense, LedgerEntry, SiteSetting, ServiceQuery, SupportQuery, VisitorCount, FAQItem, Testimonial
 
 
 def settings_obj():
@@ -27,13 +37,36 @@ def get_lang(request):
     return lang if lang in ('en', 'hi') else 'en'
 
 
+def whatsapp_link(site, text):
+    """Build a wa.me link with the showroom number and a prefilled message."""
+    number = ''.join(ch for ch in (site.whatsapp or site.phone_primary or '') if ch.isdigit())
+    if not number:
+        return ''
+    if number.startswith('91') and len(number) > 10:
+        number = number[-10:]
+    elif len(number) > 10:
+        number = number[-10:]
+    return f'https://wa.me/{number}?text={urllib.parse.quote(text)}'
+
+
 def base_context(request):
     lang = get_lang(request)
     gallery = GalleryImage.objects.filter(published=True).order_by('sort_order', '-created_at')
     obj, _ = VisitorCount.objects.get_or_create(pk=1)
     VisitorCount.objects.filter(pk=obj.pk).update(count=F('count') + 1)
     obj.refresh_from_db()
-    return {'site': settings_obj(), 'lang': lang, 'gallery_items': gallery[:8], 'visitor_count': obj.count}
+    site = settings_obj()
+    default_wa = 'Hello, I would like to know about electric scooters at Akshat Agni EV Motors.' if lang == 'en' else 'नमस्ते, मुझे अक्षत अग्नि ईवी मोटर्स के बारे में जानकारी चाहिए।'
+    return {
+        'site': site,
+        'lang': lang,
+        't': ui(lang),
+        'ph': PLACEHOLDER,
+        'gallery_items': gallery[:8],
+        'visitor_count': obj.count,
+        'wa_link': whatsapp_link(site, default_wa),
+        'has_eauto': Product.objects.filter(published=True, category__slug='e-auto-7-seater').exists(),
+    }
 
 
 def language(request, code):
@@ -58,6 +91,8 @@ def home(request):
     offers = __import__('showroom.models', fromlist=['Offer']).Offer.objects.filter(published=True).order_by('-created_at')[:4]
     ctx = base_context(request)
     ctx.update({'products':products[:24],'featured':featured,'categories':cats,'query':q,'selected_category':category_slug,'selected_segment':segment,'offers':offers})
+    ctx['testimonials'] = Testimonial.objects.filter(published=True)[:6]
+    ctx['faq_items'] = FAQItem.objects.filter(published=True)[:12]
     return render(request,'home.html',ctx)
 
 
@@ -73,7 +108,11 @@ def category_page(request, slug):
 
 def product_detail(request, slug):
     product=get_object_or_404(Product.objects.select_related('category'),slug=slug,published=True)
-    ctx=base_context(request); ctx.update({'product':product,'gallery':product.gallery.filter(published=True),'emi_plans':product.emi_plans.filter(active=True),'related':Product.objects.filter(published=True,category=product.category).exclude(pk=product.pk)[:4]})
+    site=settings_obj()
+    ctx=base_context(request)
+    ctx.update({'product':product,'gallery':product.gallery.filter(published=True),'emi_plans':product.emi_plans.filter(active=True),'related':Product.objects.filter(published=True,category=product.category).exclude(pk=product.pk)[:4]})
+    ctx['wa_link'] = whatsapp_link(site, f'Hello, I want to know about {product.name}.')
+    ctx['spec_rows'] = product.spec_rows()
     return render(request,'product_detail.html',ctx)
 
 
@@ -92,6 +131,82 @@ def enquire(request, slug=None):
     if request.method=='POST' and form.is_valid():
         form.save(); messages.success(request,'Thank you. Our team will contact you shortly. / धन्यवाद, हमारी टीम जल्द संपर्क करेगी।'); return redirect('enquiry')
     ctx=base_context(request); ctx['form']=form; return render(request,'enquiry.html',ctx)
+
+
+def test_ride(request, slug=None):
+    """Book a test ride for a model."""
+    product = None
+    if slug:
+        product = get_object_or_404(Product, slug=slug, published=True)
+    initial = {'product': product} if product else {}
+    form = TestRideForm(request.POST or None, initial=initial)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save(commit=False)
+        obj.request_type = 'TEST_RIDE'
+        obj.message = f'Test ride request for {obj.product.name if obj.product else "scooter"}'
+        obj.save()
+        ctx = base_context(request)
+        ctx['product'] = product
+        ctx['booked'] = obj
+        return render(request, 'test_ride_success.html', ctx)
+    ctx = base_context(request)
+    ctx.update({'form': form, 'product': product})
+    return render(request, 'test_ride.html', ctx)
+
+
+def ask_part(request):
+    """Ask the showroom for a spare part."""
+    form = PartRequestForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        obj = form.save(commit=False)
+        obj.request_type = 'PART'
+        obj.message = f'Part request ({obj.vehicle_model}): {obj.message}'
+        obj.save()
+        ctx = base_context(request)
+        ctx['part_request'] = obj
+        return render(request, 'ask_part_success.html', ctx)
+    ctx = base_context(request)
+    ctx['form'] = form
+    return render(request, 'ask_part.html', ctx)
+
+
+def track_request(request):
+    """Let a customer look up their own requests using their mobile number."""
+    form = TrackRequestForm(request.POST or None)
+    results = []
+    searched = False
+    if request.method == 'POST' and form.is_valid():
+        searched = True
+        phone = form.cleaned_data['phone']
+        digits = phone[-10:]
+        for order in Order.objects.filter(phone__contains=digits).select_related('product')[:10]:
+            results.append({'kind': 'order', 'ref': f'#{order.pk}', 'date': order.created_at, 'status': order.get_status_display(),
+                            'title': order.product.name if order.product else 'Order', 'meta': order.product.name if order.product else ''})
+        for ticket in ServiceQuery.objects.filter(mobile__contains=digits)[:10]:
+            results.append({'kind': 'service', 'ref': ticket.ticket_no, 'date': ticket.created_at, 'status': ticket.get_status_display(),
+                            'title': ticket.get_category_display(), 'meta': ticket.vehicle_model})
+        for ticket in SupportQuery.objects.filter(mobile__contains=digits)[:10]:
+            results.append({'kind': 'support', 'ref': ticket.ticket_no, 'date': ticket.created_at, 'status': ticket.get_status_display(),
+                            'title': ticket.get_category_display(), 'meta': ticket.order_number})
+        for enquiry in Enquiry.objects.filter(phone__contains=digits).select_related('product')[:10]:
+            results.append({'kind': 'enquiry', 'ref': f'ENQ-{enquiry.pk}', 'date': enquiry.created_at, 'status': enquiry.get_status_display(),
+                            'title': enquiry.get_request_type_display(), 'meta': enquiry.product.name if enquiry.product else ''})
+        results.sort(key=lambda r: r['date'], reverse=True)
+    ctx = base_context(request)
+    ctx.update({'form': form, 'results': results, 'searched': searched})
+    return render(request, 'track_request.html', ctx)
+
+
+def compare(request):
+    """Side by side comparison of up to three products."""
+    raw = request.GET.get('ids', '')
+    slugs = [s for s in raw.split(',') if s][:3]
+    products = list(Product.objects.filter(published=True, slug__in=slugs).select_related('category'))
+    order = {s: i for i, s in enumerate(slugs)}
+    products.sort(key=lambda p: order.get(p.slug, 99))
+    ctx = base_context(request)
+    ctx.update({'products': products, 'slugs': slugs})
+    return render(request, 'compare.html', ctx)
 
 
 def service_enquiry(request):
