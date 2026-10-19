@@ -206,6 +206,9 @@ class SiteSettingAdmin(admin.ModelAdmin):
     form=SiteSettingAdminForm
     list_display=('business_name','phone_primary','phone_secondary')
 
+    class Media:
+        js = ('js/image_compress.js',)
+
 
 @admin.register(ProductEMIPlan)
 class ProductEMIPlanAdmin(admin.ModelAdmin):
