@@ -114,7 +114,7 @@ def home(request):
     # Sensible starting values for the EMI calculator, taken from real stock.
     priced = Product.objects.filter(published=True).exclude(price=0).order_by('price').first()
     ctx['emi_default_price'] = int(priced.display_price) if priced else 90000
-    ctx['emi_default_down'] = int(priced.display_price * 0.2) if priced else 18000
+    ctx['emi_default_down'] = int(priced.display_price * Decimal('0.2')) if priced else 18000
     return render(request,'home.html',ctx)
 
 
