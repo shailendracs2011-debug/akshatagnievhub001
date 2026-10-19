@@ -82,7 +82,9 @@ The photos live in the database as base64 data URLs, so a template that inlines 
 
 **Content**
 
-- [x] `showroom/management/commands/seed_faq.py` — 8 starter questions from the brief, every answer marked `[ANSWER_NEEDS_SHOWROOM_CONFIRMATION]`
+- [x] `showroom/faq_content.py` — the 8 starter questions with their answers in English and Hindi; the single source for the seed command and the data migration
+- [x] `showroom/management/commands/seed_faq.py` — fills a database that has no FAQ rows; owner-edited answers are never overwritten (`--refresh` forces it)
+- [x] `showroom/migrations/0009_seed_faq_items.py` — data migration that creates the 8 questions on every fresh database, so the home page FAQ section is never missing on a new environment
 - [x] `seed_data.py` — per-model one-line descriptions (the old card repeated one sentence for every scooter) and customer-facing copy with no internal wording left in public templates
 
 ---
@@ -167,7 +169,7 @@ These are deliberately shown to the customer as bracketed placeholders rather th
 | Placeholder | Where to fill it |
 | --- | --- |
 | `[TO BE UPDATED]` on model cards | Admin → Products → Range / Top speed / Battery / Price |
-| `[ANSWER_NEEDS_SHOWROOM_CONFIRMATION]` | Admin → FAQ items (8 seeded questions) |
+| `[ANSWER_NEEDS_SHOWROOM_CONFIRMATION]` | Already answered — edit in Admin → FAQ items |
 | `[SHOWROOM_TIMINGS]` | ERP → Settings → Opening hours |
 | `[HERO_PHOTO]` | ERP → Settings → Hero Photo (web + mobile) — upload fields are on the form |
 | `[SHOWROOM_LANDMARK]` | ERP → Settings → Landmark |
@@ -182,7 +184,8 @@ Other owner actions:
 - [ ] Upload a **phone-sized hero photo** (under ~60 KB) so the mobile hero drops from 48 KB to a few KB
 - [ ] Confirm the seeded testimonial — it is published and shows on the home page
 - [ ] Add the real product photos; models with no photo fall back to the silhouette placeholder
-- [ ] Review the 8 seeded FAQ answers, or write real ones
+- [ ] Review the 8 seeded FAQ answers in Admin → FAQ items, or write real ones
+- [ ] Production FAQ: the 8 questions are seeded by migration `0009`, so the section shows up on any new database — confirmed live on `akshatagnievhub.in`
 
 ---
 

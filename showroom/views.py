@@ -110,7 +110,7 @@ def home(request):
     ctx = base_context(request)
     ctx.update({'products':products[:24],'featured':featured,'categories':cats,'query':q,'selected_category':category_slug,'selected_segment':segment,'offers':offers})
     ctx['testimonials'] = Testimonial.objects.filter(published=True)[:6]
-    ctx['faq_items'] = FAQItem.objects.filter(published=True)[:12]
+    ctx['faq_items'] = list(FAQItem.objects.filter(published=True))
     # Sensible starting values for the EMI calculator, taken from real stock.
     priced = Product.objects.filter(published=True).exclude(price=0).order_by('price').first()
     ctx['emi_default_price'] = int(priced.display_price) if priced else 90000
