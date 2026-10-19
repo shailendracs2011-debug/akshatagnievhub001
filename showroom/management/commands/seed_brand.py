@@ -1,6 +1,6 @@
 from pathlib import Path
 from django.core.management.base import BaseCommand
-from showroom.models import Activity, SiteSetting
+from showroom.models import GalleryImage, SiteSetting
 import base64
 
 class Command(BaseCommand):
@@ -18,17 +18,24 @@ class Command(BaseCommand):
                 "address": "Maihar, Madhya Pradesh",
                 "address_hi": "मैहर, मध्य प्रदेश",
                 "whatsapp": "9425969464",
+                "website": "https://www.akshatagnievhub.in",
+                "email": "info@akshatagnievhub.in",
+                "instagram_url": "https://www.instagram.com/akshatagnievhub",
+                "facebook_url": "https://www.instagram.com/akshatagnievhub",
+                "youtube_url": "https://www.instagram.com/akshatagnievhub",
+                "twitter_url": "https://www.instagram.com/akshatagnievhub",
+                "google_maps_url": "https://share.google/fejZNy8BmLFDCTDX1",
             },
         )
-        base = Path(__file__).resolve().parents[4]
+        base = Path(__file__).resolve().parents[3]
         image = base / "static" / "images" / "showroom-banner.webp"
         if image.exists():
             data = 'data:image/webp;base64,' + base64.b64encode(image.read_bytes()).decode('ascii')
-            Activity.objects.update_or_create(
+            GalleryImage.objects.update_or_create(
                 title="Akshat Agni EV Motors — Showroom",
                 defaults={
                     "title_hi": "अक्षत अग्नि ईवी मोटर्स — शोरूम",
-                    "category": "Showroom",
+                    "category": "SHOWROOM",
                     "description": "Our Maihar showroom — EV sales, service, spares, batteries and accessories.",
                     "description_hi": "हमारा मैहर शोरूम — ईवी बिक्री, सर्विस, स्पेयर पार्ट्स, बैटरी और एक्सेसरीज़।",
                     "image_data": data,

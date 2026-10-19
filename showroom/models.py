@@ -511,6 +511,11 @@ class SiteSetting(TimeStamped):
     authorized_person = models.CharField(max_length=150, blank=True)
     gst_number = models.CharField(max_length=30, blank=True)
     website = models.CharField(max_length=220, blank=True)
+    email = models.EmailField(blank=True, default='info@akshatagnievhub.in')
+    instagram_url = models.URLField(blank=True, default='https://www.instagram.com/akshatagnievhub')
+    facebook_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True)
+    twitter_url = models.URLField(blank=True)
     signatory_name = models.CharField(max_length=150, blank=True)
     signature_data = models.TextField(blank=True)
 
@@ -525,7 +530,7 @@ class SiteSetting(TimeStamped):
     landmark_hi = models.CharField(max_length=160, blank=True)
     opening_hours = models.CharField(max_length=200, blank=True, help_text='e.g. Mon-Sat 10:00 AM - 8:00 PM, Sunday 11:00 AM - 6:00 PM')
     opening_hours_hi = models.CharField(max_length=200, blank=True)
-    google_maps_url = models.CharField(max_length=400, blank=True, help_text='Link used by the Get directions button')
+    google_maps_url = models.CharField(max_length=400, blank=True, default='https://share.google/fejZNy8BmLFDCTDX1', help_text='Link used by the Get directions button')
     map_embed_url = models.CharField(max_length=400, blank=True, help_text='Embed URL. The map loads only when the visitor taps it.')
 
     # "Why choose us" facts. Empty values fall back to visible placeholders.

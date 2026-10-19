@@ -86,7 +86,7 @@
 <footer class="footer">
   <div class="wrap foot-grid">
     <div>
-      <h3>{{ site.business_name }}</h3>
+      <h2>{{ site.business_name }}</h2>
       <p>{{ site.address }}{% if site.landmark %} — {% if lang == 'hi' %}{{ site.landmark_hi|default:site.landmark }}{% else %}{{ site.landmark }}{% endif %}{% endif %}</p>
       <p>{% if lang == 'hi' %}{{ site.opening_hours_hi|default:ph.showroom_timings }}{% else %}{{ site.opening_hours|default:ph.showroom_timings }}{% endif %}</p>
       <p>
@@ -94,16 +94,15 @@
         {% if site.phone_secondary %}<a class="foot-tel" href="tel:{{ site.phone_secondary }}">☎ {{ site.phone_secondary }}</a>{% endif %}
       </p>
       <p><a class="foot-tel" href="{{ wa_link }}" target="_blank" rel="noopener">WhatsApp {{ site.whatsapp }}</a></p>
-      <div id="map-holder">
-        <button class="map-button" type="button" data-map-src="{{ site.map_embed_url }}" data-map-title="{{ site.business_name }} location map">
-          ▤ {{ t.foot_map }}
-        </button>
-        <p class="note" style="margin-top:8px">{{ t.foot_map_note }}</p>
+      {% if site.email %}<p><a class="foot-tel" href="mailto:{{ site.email }}">✉ {{ site.email }}</a></p>{% endif %}
+      {% if site.instagram_url %}<p><a class="foot-tel" href="{{ site.instagram_url }}" target="_blank" rel="noopener">📸 {{ t.foot_instagram }}</a></p>{% endif %}
+      <div>
+        <a class="map-button" href="{{ site.google_maps_url|default:'https://share.google/fejZNy8BmLFDCTDX1' }}" target="_blank" rel="noopener">▤ {{ t.foot_map }}</a>
       </div>
     </div>
 
     <div>
-      <h3>{{ t.foot_explore }}</h3>
+      <h2>{{ t.foot_explore }}</h2>
       <ul class="foot-links">
         <li><a href="{% url 'home' %}">{{ t.nav_home }}</a></li>
         <li><a href="{% url 'category' 'e-scooter' %}">{{ t.nav_scooters }}</a></li>
@@ -114,7 +113,7 @@
     </div>
 
     <div>
-      <h3>{{ t.foot_help }}</h3>
+      <h2>{{ t.foot_help }}</h2>
       <ul class="foot-links">
         <li><a href="{% url 'service' %}">{{ t.tile_service_cta }}</a></li>
         <li><a href="{% url 'ask_part' %}">{{ t.tile_parts_cta }}</a></li>
@@ -125,6 +124,33 @@
       {% if site.website %}<p><a href="{{ site.website }}" target="_blank" rel="noopener">{{ site.website }}</a></p>{% endif %}
     </div>
   </div>
+
+  <!-- Follow Us -->
+  <div class="wrap" style="padding-block:var(--sp-3);border-top:1px solid rgba(255,255,255,.14)">
+    <h2 style="font-size:var(--fs-sm);text-transform:uppercase;letter-spacing:.1em;color:var(--brand-300);margin-bottom:var(--sp-2)">{{ t.foot_follow_us }}</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
+      {% if site.instagram_url %}<a href="{{ site.instagram_url }}" target="_blank" rel="noopener" style="color:#fff;min-height:44px;display:inline-flex;align-items:center;gap:6px">📸 {{ t.foot_instagram }}</a>{% endif %}
+      {% if site.facebook_url %}<a href="{{ site.facebook_url }}" target="_blank" rel="noopener" style="color:#fff;min-height:44px;display:inline-flex;align-items:center;gap:6px">📘 {{ t.foot_facebook }}</a>{% endif %}
+      {% if site.youtube_url %}<a href="{{ site.youtube_url }}" target="_blank" rel="noopener" style="color:#fff;min-height:44px;display:inline-flex;align-items:center;gap:6px">▶ {{ t.foot_youtube }}</a>{% endif %}
+      {% if site.twitter_url %}<a href="{{ site.twitter_url }}" target="_blank" rel="noopener" style="color:#fff;min-height:44px;display:inline-flex;align-items:center;gap:6px">𝕏 {{ t.foot_twitter }}</a>{% endif %}
+    </div>
+  </div>
+
+  <!-- QR Code and Info -->
+  <div class="wrap" style="padding-block:var(--sp-3);border-top:1px solid rgba(255,255,255,.14);display:grid;gap:var(--sp-3)">
+    <div style="display:flex;flex-wrap:wrap;gap:var(--sp-4);align-items:center">
+      <div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ site.website|default:'https://www.akshatagnievhub.in' }}" alt="QR code to visit website" width="120" height="120" loading="lazy">
+        <p style="font-size:var(--fs-xs);color:rgba(232,245,238,.65);margin-top:4px;text-align:center">{{ t.foot_qr_visit }}</p>
+      </div>
+      <div>
+        <p style="font-size:var(--fs-sm);color:rgba(232,245,238,.82);margin:0">{{ t.foot_last_modified }}: {{ site.updated_at|date:"l, d M, Y" }}</p>
+        <p style="font-size:var(--fs-sm);color:rgba(232,245,238,.82);margin:0">{{ t.foot_visitor_count }}: {{ visitor_count }}</p>
+      </div>
+    </div>
+    <p style="font-size:var(--fs-xs);color:rgba(232,245,238,.65);margin:0">{{ t.foot_owned_by }}: Akshat Agni EV Hub, Maihar</p>
+  </div>
+
   <div class="copyright">© {% now "Y" %} {{ site.business_name }} — {{ t.foot_rights }}</div>
 </footer>
 

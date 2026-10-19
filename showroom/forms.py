@@ -446,6 +446,11 @@ class SiteSettingForm(forms.ModelForm):
         model = SiteSetting
         fields = [
             'business_name', 'authorized_person', 'gst_number', 'website',
+            'email',
+            'instagram_url',
+            'facebook_url',
+            'youtube_url',
+            'twitter_url',
             'phone_primary', 'phone_secondary', 'address', 'whatsapp',
             'signatory_name', 'signature_image',
             'tagline', 'tagline_hi', 'about', 'about_hi',
