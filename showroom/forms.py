@@ -2,6 +2,7 @@ import base64
 import io
 
 from django import forms
+from django.urls import reverse_lazy
 
 from .images import bytes_to_data_url, thumbnail_data_url, HERO_BYTES, HERO_EDGE, THUMBNAIL_BYTES
 from .models import (
@@ -164,51 +165,120 @@ class TestimonialAdminForm(forms.ModelForm):
         return obj
 
 
+class StoredImagePreview(forms.Widget):
+    """Show the picture that is currently stored for a settings column.
+
+    The stored pictures are base64 data URLs. Putting them back into the form
+    as textareas would post about a megabyte of text on every save, and the
+    hosting platform rejects a request body that large before the request
+    even reaches the app. The picture is therefore shown as a link to the
+    image endpoint instead of being carried inside the form.
+    """
+
+    def __init__(self, source='', caption='', **kwargs):
+        # The source stays lazy: resolving it while the module is imported
+        # would load the URLconf before it is ready.
+        self.source = source
+        self.caption = caption
+        super().__init__(**kwargs)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        source = str(self.source)
+        if not value:
+            return f'<p style="margin:0 0 6px;color:#666">{self.caption}: not set</p>'
+        preview = f'{source}?w=360'
+        return (
+            f'<p style="margin:0 0 6px">{self.caption}: '
+            f'<a href="{source}" target="_blank">'
+            f'<img src="{preview}" alt="" style="max-width:360px;max-height:160px;'
+            f'object-fit:contain;vertical-align:middle"></a></p>'
+        )
+
+
 class SiteSettingAdminForm(forms.ModelForm):
     """Admin form for business settings and replaceable homepage/logo images."""
 
-    hero_image = forms.ImageField(
+    # The upload fields deliberately use their own names. A form field that
+    # shares a name with a model column overwrites that column with None
+    # whenever the owner saves the page without picking a new file, which
+    # silently cleared the hero photos and the offer banner.
+    hero_upload = forms.ImageField(
         required=False,
         label='Homepage Hero Image / होमपेज फोटो',
         help_text='Upload a new image to replace the current homepage hero photo.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
-    hero_image_web = forms.ImageField(
+    hero_web_upload = forms.ImageField(
         required=False,
         label='Hero Photo — Web (wide) / हीरो फोटो — वेब',
         help_text='Wide photo for desktop screens. Landscape, under 150 KB.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
-    hero_image_mobile = forms.ImageField(
+    hero_mobile_upload = forms.ImageField(
         required=False,
         label='Hero Photo — Mobile (tall) / हीरो फोटो — मोबाइल',
         help_text='Tall photo for phones. Portrait, under 150 KB.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
-    offer_banner_image = forms.ImageField(
+    banner_upload = forms.ImageField(
         required=False,
         label='Offer Banner Image / ऑफर बैनर फोटो',
         help_text='Optional small image shown beside the offer banner text.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
-    logo_image = forms.ImageField(
+    logo_upload = forms.ImageField(
         required=False,
         label='Logo / लोगो',
         help_text='Upload a new logo to replace the current logo.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
+    signature_upload = forms.ImageField(
+        required=False,
+        label='Authorized Signatory Signature / प्राधिकरण हस्ताक्षर',
+        help_text='Upload a new signature image to replace the current signature.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/png,image/jpeg,image/webp'}),
+    )
+    hero_preview = forms.CharField(
+        required=False,
+        label='Current hero photo',
+        widget=StoredImagePreview(
+            source=reverse_lazy('media_site_image', args=['hero']),
+            caption='Current hero photo',
+        ),
+    )
+    logo_preview = forms.CharField(
+        required=False,
+        label='Current logo',
+        widget=StoredImagePreview(
+            source=reverse_lazy('media_site_image', args=['logo']),
+            caption='Current logo',
+        ),
+    )
 
     class Meta:
         model = SiteSetting
-        fields = '__all__'
+        # The base64 columns stay out of the form. They are replaced through
+        # the upload fields above, and keeping them out stops every save from
+        # posting megabytes of image data back to the server.
+        exclude = [
+            'hero_image_data', 'hero_image_web', 'hero_image_mobile',
+            'logo_data', 'signature_data', 'offer_banner_image',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        site = self.instance
+        self.initial['hero_preview'] = '1' if (site.hero_image_web or site.hero_image_data) else ''
+        self.initial['logo_preview'] = '1' if site.logo_data else ''
 
     def save(self, commit=True):
         obj = super().save(commit=False)
-        hero = self.cleaned_data.get('hero_image')
-        logo = self.cleaned_data.get('logo_image')
-        hero_web = self.cleaned_data.get('hero_image_web')
-        hero_mobile = self.cleaned_data.get('hero_image_mobile')
-        banner_image = self.cleaned_data.get('offer_banner_image')
+        hero = self.cleaned_data.get('hero_upload')
+        logo = self.cleaned_data.get('logo_upload')
+        hero_web = self.cleaned_data.get('hero_web_upload')
+        hero_mobile = self.cleaned_data.get('hero_mobile_upload')
+        banner_image = self.cleaned_data.get('banner_upload')
+        signature = self.cleaned_data.get('signature_upload')
 
         if hero:
             obj.hero_image_data = image_to_data_url(hero)
@@ -224,6 +294,8 @@ class SiteSettingAdminForm(forms.ModelForm):
         if logo:
             raw = logo.read(); logo.seek(0)
             obj.logo_data = bytes_to_data_url(raw, THUMBNAIL_BYTES, 240)
+        if signature:
+            obj.signature_data = image_to_data_url(signature)
         if commit:
             obj.save()
         return obj
@@ -411,19 +483,27 @@ class SupportQueryForm(forms.ModelForm):
 
 
 class SiteSettingForm(forms.ModelForm):
+    """ERP settings form.
+
+    The picture fields carry their own names on purpose. A form field that
+    shares a name with a model column overwrites that column with None when
+    the page is saved without a new file, which cleared the hero photos and
+    the offer banner.
+    """
+
     signature_image = forms.ImageField(
         required=False,
         label='Authorized Signatory Signature / प्राधिकरण हस्ताक्षर',
         help_text='Upload a new signature image to replace the current signature.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/png'}),
     )
-    hero_image_web = forms.ImageField(
+    hero_web_upload = forms.ImageField(
         required=False,
         label='Hero Photo — Web (wide) / हीरो फोटो — वेब',
         help_text='Wide photo for desktop screens. Landscape, under 150 KB.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
-    hero_image_mobile = forms.ImageField(
+    hero_mobile_upload = forms.ImageField(
         required=False,
         label='Hero Photo — Mobile (tall) / हीरो फोटो — मोबाइल',
         help_text='Tall photo for phones. Portrait, under 150 KB.',
@@ -435,11 +515,27 @@ class SiteSettingForm(forms.ModelForm):
         help_text='Upload a new logo to replace the current logo.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
     )
-    offer_banner_image = forms.ImageField(
+    banner_upload = forms.ImageField(
         required=False,
         label='Offer Banner Image / ऑफर बैनर फोटो',
         help_text='Optional small image shown beside the offer banner text.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+    hero_preview = forms.CharField(
+        required=False,
+        label='Current hero photo',
+        widget=StoredImagePreview(
+            source=reverse_lazy('media_site_image', args=['hero']),
+            caption='Current hero photo',
+        ),
+    )
+    logo_preview = forms.CharField(
+        required=False,
+        label='Current logo',
+        widget=StoredImagePreview(
+            source=reverse_lazy('media_site_image', args=['logo']),
+            caption='Current logo',
+        ),
     )
 
     class Meta:
@@ -455,11 +551,10 @@ class SiteSettingForm(forms.ModelForm):
             'signatory_name', 'signature_image',
             'tagline', 'tagline_hi', 'about', 'about_hi',
             'hero_title', 'hero_title_hi', 'hero_subtitle', 'hero_subtitle_hi',
-            'hero_image_web', 'hero_image_mobile', 'logo_image',
+            'logo_image',
             'landmark', 'landmark_hi', 'opening_hours', 'opening_hours_hi',
             'google_maps_url', 'map_embed_url',
             'offer_banner_text', 'offer_banner_text_hi', 'offer_banner_link',
-            'offer_banner_image',
             'why_brand_authorised', 'why_brand_authorised_hi',
             'why_warranty', 'why_warranty_hi',
             'why_free_service', 'why_free_service_hi',
@@ -468,16 +563,22 @@ class SiteSettingForm(forms.ModelForm):
             'default_electricity_rate', 'default_ev_km_per_unit',
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        site = self.instance
+        self.initial['hero_preview'] = '1' if (site.hero_image_web or site.hero_image_data) else ''
+        self.initial['logo_preview'] = '1' if site.logo_data else ''
+
     def save(self, commit=True):
         obj = super().save(commit=False)
         sig = self.cleaned_data.get('signature_image')
         if sig:
             obj.signature_data = image_to_data_url(sig)
-        hero_web = self.cleaned_data.get('hero_image_web')
+        hero_web = self.cleaned_data.get('hero_web_upload')
         if hero_web:
             raw = hero_web.read(); hero_web.seek(0)
             obj.hero_image_web = bytes_to_data_url(raw, HERO_BYTES, HERO_EDGE)
-        hero_mobile = self.cleaned_data.get('hero_image_mobile')
+        hero_mobile = self.cleaned_data.get('hero_mobile_upload')
         if hero_mobile:
             raw = hero_mobile.read(); hero_mobile.seek(0)
             obj.hero_image_mobile = bytes_to_data_url(raw, HERO_BYTES, HERO_EDGE)
@@ -485,7 +586,7 @@ class SiteSettingForm(forms.ModelForm):
         if logo:
             raw = logo.read(); logo.seek(0)
             obj.logo_data = bytes_to_data_url(raw, THUMBNAIL_BYTES, 240)
-        banner = self.cleaned_data.get('offer_banner_image')
+        banner = self.cleaned_data.get('banner_upload')
         if banner:
             raw = banner.read(); banner.seek(0)
             obj.offer_banner_image = thumbnail_data_url(raw)
