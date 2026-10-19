@@ -3,6 +3,30 @@
    Re-theme by editing the :root tokens only.
    ========================================================================== */
 
+/* Self-hosted Noto Sans (variable). Two files cover Latin + Devanagari.
+   The Devanagari file is only downloaded when Devanagari text is on the page. */
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/noto-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/noto-sans-devanagari.woff2') format('woff2');
+  /* The currency block (U+20B8-20E7, which includes "₹") is deliberately
+     left out: including it made every English page download the 99 KB
+     Devanagari file just to draw a rupee sign. The system font covers it. */
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+25CC, U+A830-A839, U+A8E0-A8FF;
+}
+
 :root {
   /* Brand */
   --brand-900: #06301F;
@@ -23,7 +47,7 @@
   /* Neutrals */
   --ink: #12211A;
   --ink-2: #4A5B52;
-  --ink-3: #6E7F76;
+  --ink-3: #5A6A62;
   --line: #DCE7E0;
   --line-strong: #8AA195;
   --surface: #FFFFFF;
@@ -61,8 +85,8 @@
 
   /* Type */
   --font: 'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  --fs-xs: .75rem;    /* 12 */
-  --fs-sm: .875rem;   /* 14 */
+  --fs-xs: .875rem;  /* 14 — micro labels only */
+  --fs-sm: 1rem;     /* 16 — smallest readable content text */
   --fs-base: 1rem;   /* 16 */
   --fs-md: 1.125rem; /* 18 */
   --fs-lg: 1.25rem;  /* 20 */
@@ -73,6 +97,9 @@
 
   --wrap: 1180px;
   --header-h: 64px;
+  /* Height of the sticky mobile call/WhatsApp bar. The compare tray stacks
+     on top of it, so both need to agree on the number. */
+  --action-bar-h: 64px;
 }
 
 /* ---------- Reset / base ---------- */
@@ -161,6 +188,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn-ghost-light { background: rgba(255, 255, 255, .12); color: #fff; border-color: rgba(255, 255, 255, .6); }
 .btn-ghost-light:hover { background: rgba(255, 255, 255, .22); color: #fff; }
 .btn-sm { min-height: 44px; padding: 0 var(--sp-2); font-size: var(--fs-sm); }
+/* An author `display` rule beats the UA stylesheet's `[hidden] { display:none }`,
+   so buttons toggled with the `hidden` attribute would stay on screen. */
+.btn[hidden] { display: none !important; }
 .btn-block { width: 100%; }
 .btn-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 
@@ -189,12 +219,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .form-page { padding-block: var(--sp-5) var(--sp-8); }
 .form-grid { display: grid; gap: var(--sp-2); }
 
+/* Below-the-fold sections skip layout and paint until they are scrolled
+   near the viewport. `contain-intrinsic-size: auto` lets the browser reuse
+   the last measured height, so the scrollbar does not jump. */
+.defer-render {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 520px;
+}
+
 /* ---------- Header ---------- */
 .top {
   position: sticky; top: 0; z-index: 50;
-  background: rgba(255, 255, 255, .96);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  /* Deliberately no backdrop-filter: blurring the page behind a sticky
+     header repaints on every scroll and was the single biggest main-thread
+     cost on a throttled phone. */
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 .nav {
@@ -217,6 +256,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: 0 10px; font-size: var(--fs-xs); font-weight: 700; color: var(--ink-2);
 }
 .lang-toggle a[aria-current="true"] { background: var(--brand-600); color: #fff; }
+/* The Hindi label uses a system font so English-only visitors do not
+   download the 99 KB Devanagari webfont just to read "हि". */
+.lang-toggle a.lang-hi { font-family: system-ui, 'Segoe UI', Tahoma, sans-serif; }
 .call-pill {
   display: none; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px;
   border-radius: var(--r-pill); background: var(--brand-600); color: #fff; font-weight: 700; font-size: var(--fs-sm);
@@ -273,8 +315,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- Hero ---------- */
 .hero { position: relative; background: var(--brand-900); color: #fff; isolation: isolate; }
-.hero-bg { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; }
-.hero-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 48, 31, .82) 0%, rgba(6, 48, 31, .55) 45%, rgba(6, 48, 31, .92) 100%); }
+.hero-bg, .hero-media { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; overflow: hidden; }
+.hero-media picture, .hero-media img { width: 100%; height: 100%; }
+.hero-media img { object-fit: cover; }
+.hero-bg::after, .hero-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 48, 31, .82) 0%, rgba(6, 48, 31, .55) 45%, rgba(6, 48, 31, .92) 100%); }
 .hero-inner { padding-block: var(--sp-7) var(--sp-6); display: grid; gap: var(--sp-3); }
 .hero-badge {
   display: inline-flex; align-items: center; gap: 6px; align-self: start;
@@ -313,15 +357,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .image-fallback span { font-size: var(--fs-xs); color: var(--ink-2); }
 .product-body { padding: var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-1); flex: 1; }
 .product-tag { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--brand-600); }
-.product-body h3 { font-size: var(--fs-lg); margin: 0; }
-.product-body h3 a { color: var(--ink); }
-.product-body h3 a:hover { color: var(--brand-600); }
+.product-body h2 { font-size: var(--fs-lg); margin: 0; }
+.product-body h2 a { color: var(--ink); }
+.product-body h2 a:hover { color: var(--brand-600); }
 .product-desc { font-size: var(--fs-sm); color: var(--ink-2); margin: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: var(--sp-1); }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
   background: var(--brand-050); border: 1px solid var(--line); color: var(--ink-2);
-  border-radius: var(--r-pill); padding: 4px 10px; font-size: var(--fs-xs); font-weight: 600;
+  border-radius: var(--r-pill); padding: 4px 10px; font-size: var(--fs-sm); font-weight: 600;
 }
 .chip b { color: var(--brand-700); font-weight: 700; }
 .chip-placeholder { background: var(--page); color: var(--ink-3); font-style: italic; }
@@ -339,16 +383,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Sticky compare tray */
 .compare-tray {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  /* How far the tray sits above the bottom edge. On phones the sticky
+     call/WhatsApp bar owns the bottom, so the tray stacks above it. */
+  --tray-offset: 0px;
+  position: fixed; left: 0; right: 0; bottom: var(--tray-offset); z-index: 46;
   background: var(--brand-900); color: #fff; box-shadow: var(--shadow-3);
-  transform: translateY(110%); transition: transform .2s ease;
-  padding-bottom: env(safe-area-inset-bottom);
+  transform: translateY(calc(100% + var(--tray-offset) + 24px));
+  transition: transform .2s ease;
 }
 .compare-tray[data-visible="true"] { transform: translateY(0); }
-.compare-tray .wrap { display: flex; align-items: center; gap: var(--sp-2); padding-block: var(--sp-1); }
-.compare-tray p { margin: 0; font-size: var(--fs-sm); flex: 1; min-width: 0; }
-.compare-slots { display: flex; gap: 6px; }
+.compare-tray .wrap { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); padding-block: var(--sp-1); }
+.compare-tray p { margin: 0; font-size: var(--fs-sm); flex: 0 0 auto; }
+.compare-slots { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; overflow-x: auto; }
 .compare-slot { background: rgba(255, 255, 255, .14); border-radius: var(--r-sm); padding: 4px 8px; font-size: var(--fs-xs); font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compare-actions { display: flex; gap: var(--sp-1); flex: 0 0 auto; margin-left: auto; }
 
 /* ---------- Compare page ---------- */
 .compare-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-2); }
@@ -373,7 +421,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .spec-table tr:last-child th, .spec-table tr:last-child td { border-bottom: 0; }
 .spec-table th { color: var(--ink-2); font-weight: 600; width: 44%; }
 .who-card { background: var(--brand-050); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3); }
-.who-card h3 { font-size: var(--fs-md); margin-bottom: var(--sp-1); }
+.who-card h2 { font-size: var(--fs-md); margin-bottom: var(--sp-1); }
 .emi-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3); box-shadow: var(--shadow-1); }
 .emi-grid { display: grid; gap: var(--sp-1); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .emi-card { background: var(--brand-050); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--sp-2); display: grid; gap: 2px; }
@@ -391,7 +439,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   width: 48px; height: 48px; border-radius: var(--r-md); display: grid; place-items: center;
   background: var(--brand-100); color: var(--brand-700); font-size: var(--fs-xl);
 }
-.tile h3 { font-size: var(--fs-lg); margin: 0; }
+.tile h2 { font-size: var(--fs-lg); margin: 0; }
 .tile p { color: var(--ink-2); font-size: var(--fs-sm); margin: 0; }
 .tile .btn { margin-top: auto; align-self: start; }
 
@@ -511,7 +559,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---------- Footer ---------- */
 .footer { background: var(--brand-900); color: var(--on-dark); margin-top: var(--sp-7); padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 .foot-grid { display: grid; gap: var(--sp-4); padding-block: var(--sp-5) var(--sp-3); grid-template-columns: 1fr; }
-.footer h3 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .1em; color: var(--brand-300); margin-bottom: var(--sp-2); }
+.footer h2 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .1em; color: var(--brand-300); margin-bottom: var(--sp-2); }
 .footer p { color: rgba(232, 245, 238, .82); font-size: var(--fs-sm); margin-bottom: var(--sp-1); }
 .footer a { color: #fff; }
 .footer a:hover { color: var(--accent-300); }
@@ -593,7 +641,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .hero-photo-slot { min-height: 340px; }
   .cta { grid-template-columns: 1fr auto; align-items: center; }
   .foot-grid { grid-template-columns: 1.4fr 1fr 1fr; }
-  .compare-tray { left: auto; right: var(--sp-3); bottom: var(--sp-3); border-radius: var(--r-lg); max-width: 460px; }
+  .compare-tray { left: auto; right: var(--sp-3); bottom: var(--sp-3); border-radius: var(--r-lg); max-width: 560px; }
   .compare-tray .wrap { padding: var(--sp-1) var(--sp-2); }
   .product-detail { grid-template-columns: 1fr 1fr; gap: var(--sp-6); align-items: start; }
   .detail-main { aspect-ratio: 1; }
@@ -604,11 +652,180 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (max-width: 959px) {
   .desktop-nav { display: none; }
   .hide-mobile { display: none !important; }
+  /* The compare tray stacks on top of the sticky call/WhatsApp bar so
+     neither one hides the other. */
+  .compare-tray { --tray-offset: calc(var(--action-bar-h) + var(--sp-2)); }
+  .compare-slots { flex: 1 1 100%; }
+  .compare-actions { flex: 1 1 auto; }
+  .compare-actions .btn { flex: 1 1 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ==========================================================================
+   Modern enhancements — visual polish, mobile UX, performance
+   ========================================================================== */
+
+/* ---------- Scroll reveal ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .6s ease, transform .6s ease;
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ---------- Skeleton loaders ---------- */
+.skeleton {
+  background: linear-gradient(90deg, var(--brand-050) 25%, var(--brand-100) 50%, var(--brand-050) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--r-md);
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.img-fade {
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.img-fade.loaded { opacity: 1; }
+
+/* ---------- Card hover lift ---------- */
+.product-card, .tile, .why-card, .testi-card, .category-card {
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+@media (hover: hover) {
+  .product-card:hover, .tile:hover, .why-card:hover, .testi-card:hover, .category-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-3);
+  }
+}
+
+/* ---------- Back to top ---------- */
+.back-to-top {
+  position: fixed; right: var(--sp-2); bottom: calc(var(--action-bar-h) + var(--sp-2) + 8px);
+  width: 48px; height: 48px; border-radius: var(--r-pill);
+  background: var(--brand-600); color: #fff; border: 0; cursor: pointer;
+  box-shadow: var(--shadow-3); z-index: 44;
+  display: grid; place-items: center; font-size: var(--fs-lg);
+  opacity: 0; pointer-events: none; transform: translateY(12px);
+  transition: opacity .25s ease, transform .25s ease;
+}
+.back-to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+@media (min-width: 960px) {
+  .back-to-top { bottom: var(--sp-3); }
+}
+
+/* ---------- Mobile bottom navigation ---------- */
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 47;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  background: var(--surface); border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(6, 48, 31, .08);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav a {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; min-height: 56px; padding: 6px 4px;
+  font-size: 10px; font-weight: 600; color: var(--ink-2);
+  text-decoration: none; -webkit-tap-highlight-color: transparent;
+}
+.bottom-nav a .bn-icon { font-size: var(--fs-lg); line-height: 1; }
+.bottom-nav a.active { color: var(--brand-600); }
+.bottom-nav a.active .bn-icon { transform: scale(1.1); }
+.bottom-nav a:active { background: var(--brand-050); }
+@media (min-width: 960px) {
+  .bottom-nav { display: none; }
+}
+
+/* ---------- Improved sticky action bar ---------- */
+.action-bar {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--page) 100%);
+  backdrop-filter: blur(8px);
+}
+
+/* ---------- Form input improvements ---------- */
+.form-card input:not([type=checkbox]):not([type=radio]),
+.form-card select,
+.form-card textarea {
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.form-card input:focus, .form-card select:focus, .form-card textarea:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px var(--brand-100);
+  outline: none;
+}
+.form-card label { transition: color .15s ease; }
+.form-card .field-focused label { color: var(--brand-600); }
+
+/* ---------- Improved button press feedback ---------- */
+.btn {
+  transition: transform .12s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.btn:active { transform: translateY(1px) scale(.98); }
+.btn-primary, .btn-brand, .btn-wa {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+}
+.btn-primary:hover, .btn-brand:hover, .btn-wa:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .18);
+  transform: translateY(-1px);
+}
+
+/* ---------- Section rhythm improvements ---------- */
+.section { padding-block: var(--sp-5); }
+@media (min-width: 600px) { .section { padding-block: var(--sp-6); } }
+@media (min-width: 960px) { .section { padding-block: var(--sp-7); } }
+
+/* ---------- Better empty states ---------- */
+.empty {
+  padding: var(--sp-5); text-align: center;
+  color: var(--ink-2); background: var(--surface);
+  border: 2px dashed var(--line); border-radius: var(--r-xl);
+  font-size: var(--fs-sm);
+}
+
+/* ---------- Improved hero badge ---------- */
+.hero-badge {
+  background: rgba(255, 255, 255, .16);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, .3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+}
+
+/* ---------- Better product image loading ---------- */
+.product-image img {
+  transition: opacity .3s ease, transform .3s ease;
+}
+.product-image:hover img { transform: scale(1.03); }
+
+/* ---------- Improved footer ---------- */
+.footer { position: relative; }
+.footer::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-300), transparent);
+}
+
+/* ---------- Mobile tap target improvements ---------- */
+@media (max-width: 959px) {
+  .btn, .filter, .thumb-btn, .photo { min-height: 48px; }
+  .faq-q { min-height: 56px; }
+  .category-card { min-height: 80px; }
+}
+
+/* ---------- Smooth scrolling improvements ---------- */
+html { scroll-behavior: smooth; scroll-padding-top: var(--header-h); }
+
+/* ---------- Print ---------- */
 
 @media print {
   .top, .action-bar, .compare-tray, .footer, .offer-banner { display: none !important; }

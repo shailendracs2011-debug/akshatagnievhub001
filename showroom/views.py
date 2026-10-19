@@ -1,11 +1,11 @@
 from datetime import date, timedelta
 from decimal import Decimal
-import io, os, base64, tempfile, json, urllib.parse
+import io, os, base64, tempfile, json, urllib.parse, hashlib
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.db.models import Q, Sum, Count, F
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
@@ -24,7 +24,25 @@ from .forms import (
     TrackRequestForm,
 )
 from .i18n import PLACEHOLDER, ui
+from .images import data_url_bytes, resize_data_url
 from .models import Category, Product, ProductGallery, GalleryImage, Enquiry, Order, Sale, Purchase, Expense, LedgerEntry, SiteSetting, ServiceQuery, SupportQuery, VisitorCount, FAQItem, Testimonial
+
+# Whitelist of models whose stored image may be served as a URL.
+# Each entry is (model, full-size field, thumbnail field).
+IMAGE_SOURCES = {
+    'product': (Product, 'image_data', 'thumb_data'),
+    'productgallery': (ProductGallery, 'image_data', 'thumb_data'),
+    'galleryimage': (GalleryImage, 'image_data', 'thumb_data'),
+    'testimonial': (Testimonial, 'photo_data', 'thumb_data'),
+}
+
+# Site-level images that live on the single settings row.
+# Each entry is a list of fields tried in order until one holds an image.
+SITE_IMAGE_SOURCES = {
+    'hero': ['hero_image_web', 'hero_image_data'],
+    'hero-mobile': ['hero_image_mobile', 'hero_image_data'],
+    'logo': ['logo_data'],
+}
 
 
 def settings_obj():
@@ -93,6 +111,10 @@ def home(request):
     ctx.update({'products':products[:24],'featured':featured,'categories':cats,'query':q,'selected_category':category_slug,'selected_segment':segment,'offers':offers})
     ctx['testimonials'] = Testimonial.objects.filter(published=True)[:6]
     ctx['faq_items'] = FAQItem.objects.filter(published=True)[:12]
+    # Sensible starting values for the EMI calculator, taken from real stock.
+    priced = Product.objects.filter(published=True).exclude(price=0).order_by('price').first()
+    ctx['emi_default_price'] = int(priced.display_price) if priced else 90000
+    ctx['emi_default_down'] = int(priced.display_price * 0.2) if priced else 18000
     return render(request,'home.html',ctx)
 
 
@@ -113,6 +135,7 @@ def product_detail(request, slug):
     ctx.update({'product':product,'gallery':product.gallery.filter(published=True),'emi_plans':product.emi_plans.filter(active=True),'related':Product.objects.filter(published=True,category=product.category).exclude(pk=product.pk)[:4]})
     ctx['wa_link'] = whatsapp_link(site, f'Hello, I want to know about {product.name}.')
     ctx['spec_rows'] = product.spec_rows()
+    ctx['tr_form'] = TestRideForm(initial={'product': product})
     return render(request,'product_detail.html',ctx)
 
 
@@ -195,6 +218,73 @@ def track_request(request):
     ctx = base_context(request)
     ctx.update({'form': form, 'results': results, 'searched': searched})
     return render(request, 'track_request.html', ctx)
+
+
+def _data_url_response(data, cache_days=7, max_edge=None):
+    """Turn a stored ``data:`` URL into a cacheable binary image response.
+
+    ``max_edge`` lets the caller ask for a smaller copy — the browser tells us
+    how many pixels it will actually paint, so a 40px logo does not need the
+    640px original.
+    """
+    if not data or not data.startswith('data:'):
+        raise Http404('Image not found')
+    if max_edge:
+        data = resize_data_url(data, max_edge=max_edge)
+    raw, content_type = data_url_bytes(data)
+    if not raw:
+        raise Http404('Image not readable')
+    response = HttpResponse(raw, content_type=content_type)
+    response['Content-Length'] = str(len(raw))
+    response['Cache-Control'] = f'public, max-age={cache_days * 86400}'
+    response['ETag'] = f'"{hashlib.md5(raw).hexdigest()}"'
+    return response
+
+
+def _requested_edge(request, default=None):
+    """Read a sane ``?w=`` width hint from the query string."""
+    try:
+        edge = int(request.GET.get('w', ''))
+    except (TypeError, ValueError):
+        return default
+    if edge < 32:
+        return default
+    return min(edge, 2000)
+
+
+def media_image(request, model_name, pk):
+    """Serve a stored image as a real URL.
+
+    Images live in the database as data URLs, which means a page that inlines
+    them carries the full payload in the HTML and cannot lazy-load it. Grids
+    therefore point at this endpoint — ``?t=1`` for the stored thumbnail,
+    ``?w=`` for a specific pixel width — so the browser fetches each picture
+    separately, lazily, and can cache it.
+    """
+    entry = IMAGE_SOURCES.get((model_name or '').lower())
+    if not entry:
+        raise Http404('Unknown image source')
+    model, field, thumb_field = entry
+    obj = model.objects.filter(pk=pk).first()
+    if not obj:
+        raise Http404('Image not found')
+    data = getattr(obj, field, '') or ''
+    if request.GET.get('t') and thumb_field:
+        data = getattr(obj, thumb_field, '') or data
+    return _data_url_response(data, max_edge=_requested_edge(request))
+
+
+def media_site_image(request, name):
+    """Serve a settings-row image (hero, logo) as a cacheable URL."""
+    fields = SITE_IMAGE_SOURCES.get((name or '').lower())
+    if not fields:
+        raise Http404('Unknown image source')
+    site = settings_obj()
+    for field in fields:
+        data = getattr(site, field, '') or ''
+        if data.startswith('data:'):
+            return _data_url_response(data, max_edge=_requested_edge(request))
+    raise Http404('Image not found')
 
 
 def compare(request):

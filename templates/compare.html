@@ -21,7 +21,7 @@
               <th scope="col">
                 <div class="compare-head-img">
                   {% if p.image_data %}
-                    <img src="{{ p.image_data }}" alt="{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}" loading="lazy" decoding="async">
+                    <img src="{% url 'media_image' 'product' p.pk %}?t=1" alt="{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{p.name }}{% endif %}" loading="lazy" decoding="async">
                   {% else %}
                     {% include 'partials/vehicle_placeholder.html' %}
                   {% endif %}

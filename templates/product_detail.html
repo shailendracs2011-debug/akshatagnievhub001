@@ -1,58 +1,165 @@
 {% extends 'base.html' %}
-{% block title %}{{ product.name }} | Akshat Agni EV Motors{% endblock %}
+{% load showroom_tags %}
+{% block title %}{% if lang == 'hi' %}{{ product.name_hi|default:product.name }}{% else %}{{ product.name }}{% endif %} | {{ site.business_name }}{% endblock %}
+{% block meta_description %}{% if lang == 'hi' %}{{ product.short_description_hi|default:product.short_description }}{% else %}{{ product.short_description }}{% endif %}{% endblock %}
 {% block content %}
+
 <section class="wrap product-detail">
-  <div class="detail-media">
-    <div class="detail-main" id="mainProductImage">
+  <!-- ============ GALLERY ============ -->
+  <div class="detail-gallery">
+    <div class="detail-main">
       {% if product.image_data %}
-        <a href="{{ product.image_data }}" target="_blank" rel="noopener"><img src="{{ product.image_data }}" alt="{{ product.name }}" id="mainImage"></a>
+        <img id="detail-main-image" src="{% url 'media_image' 'product' product.pk %}" alt="{% if lang == 'hi' %}{{ product.name_hi|default:product.name }}{% else %}{{ product.name }}{% endif %}" width="600" height="600" fetchpriority="high" decoding="async">
       {% else %}
-        <div class="vehicle-art big"><span>⚡</span><b>{{ product.name }}</b><small>{% if product.coming_soon %}Coming Soon{% else %}EV MODEL{% endif %}</small></div>
+        <div class="image-fallback" style="padding:24px">
+          {% include 'partials/vehicle_placeholder.html' %}
+          <span class="muted" style="font-size:14px">{{ ph.to_be_updated }}</span>
+        </div>
       {% endif %}
     </div>
     {% if gallery %}
-      <div class="thumbs">
-        {% if product.image_data %}<button type="button" class="thumb-btn" onclick="setMainImage('{{ product.image_data }}')"><img src="{{ product.image_data }}" alt="Main"></button>{% endif %}
-        {% for g in gallery %}<button type="button" class="thumb-btn" onclick="setMainImage('{{ g.image_data }}')"><img src="{{ g.image_data }}" alt="{{ g.caption }}"></button>{% endfor %}
+      <div class="thumbs" role="group" aria-label="{{ t.nav_gallery }}">
+        {% if product.image_data %}
+          <button class="thumb-btn" type="button" data-image-url="{% url 'media_image' 'product' product.pk %}" aria-current="true">
+            <img src="{% url 'media_image' 'product' product.pk %}?t=1" alt="{% if lang == 'hi' %}{{ product.name_hi|default:product.name }}{% else %}{{ product.name }}{% endif %}" loading="lazy" decoding="async">
+          </button>
+        {% endif %}
+        {% for g in gallery %}
+          <button class="thumb-btn" type="button" data-image-url="{% url 'media_image' 'productgallery' g.pk %}" aria-current="false">
+            <img src="{% url 'media_image' 'productgallery' g.pk %}?t=1" alt="{{ g.caption|default:g.product.name }}" loading="lazy" decoding="async">
+          </button>
+        {% endfor %}
       </div>
     {% endif %}
   </div>
+
+  <!-- ============ COPY, PRICE, SPECS ============ -->
   <div class="detail-copy">
-    <span class="eyebrow green">{{ product.category.name }}{% if product.segment %} · {{ product.segment }}{% endif %}</span>
+    <span class="eyebrow">{{ product.category.name }}{% if product.segment %} · {{ product.segment }}{% endif %}</span>
     <h1>{% if lang == 'hi' %}{{ product.name_hi|default:product.name }}{% else %}{{ product.name }}{% endif %}</h1>
-    <p class="lead">{% if lang == 'hi' %}{{ product.description_hi|default:product.description }}{% else %}{{ product.description }}{% endif %}</p>
-    <div class="specs">
-      <div><small>Battery</small><b>{{ product.battery|default:'On enquiry' }}</b></div>
-      <div><small>Range</small><b>{{ product.range_text|default:'On enquiry' }}</b></div>
-      <div><small>Warranty</small><b>{{ product.warranty|default:'Ask showroom' }}</b></div>
-      {% if product.motor_power %}<div><small>Motor</small><b>{{ product.motor_power }}</b></div>{% endif %}
-      {% if product.top_speed %}<div><small>Top Speed</small><b>{{ product.top_speed }}</b></div>{% endif %}
-      {% if product.charging_time %}<div><small>Charging</small><b>{{ product.charging_time }}</b></div>{% endif %}
+
+    <p class="lead">
+      {% if lang == 'hi' %}{{ product.short_description_hi|default:product.short_description }}{% else %}{{ product.short_description }}{% endif %}
+      {% if not product.short_description and not product.short_description_hi %}<span class="placeholder-text">{{ ph.to_be_updated }}</span>{% endif %}
+    </p>
+
+    {% if product.coming_soon %}<p><span class="placeholder-chip">{{ t.pc_coming_soon }}</span></p>{% endif %}
+
+    <div class="price price-row" style="margin:16px 0">
+      {% if product.has_price %}
+        {% if product.offer_price %}<span class="mrp">₹{{ product.price|floatformat:0 }}</span>{% endif %}
+        <strong>₹{{ product.display_price|floatformat:0 }}</strong>
+        <span class="price-label">{% if product.price_label == 'On-road' %}{{ t.pc_on_road }}{% else %}{{ t.pc_ex_showroom }}{% endif %}</span>
+        {% if product.discount_percent %}<span class="discount">{{ product.discount_percent|floatformat:0 }}% OFF</span>{% endif %}
+      {% else %}
+        <span class="call-price">{{ t.pc_call_price }}</span>
+      {% endif %}
     </div>
-    <div class="price price-large">
-      {% if product.offer_price %}<span class="mrp">MRP ₹{{ product.price|floatformat:0 }}</span>{% endif %}
-      <strong>{% if product.price %}₹ {{ product.display_price|floatformat:0 }}{% else %}Price on enquiry{% endif %}</strong>
-      {% if product.discount_percent %}<span class="discount">{{ product.discount_percent|floatformat:0 }}% OFF</span>{% endif %}
+
+    <div class="chips" style="margin-bottom:16px">
+      {% for key, value in product.spec_chips %}
+        <span class="chip">{{ t|lookup:key }} <b>{{ value }}</b></span>
+      {% empty %}
+        <span class="chip chip-placeholder">{{ ph.to_be_updated }}</span>
+      {% endfor %}
     </div>
+
+    <div class="btn-row" style="margin-bottom:24px">
+      <a class="btn btn-primary" href="{% url 'product_test_ride' product.slug %}">{{ t.pd_book_test_ride }}</a>
+      <a class="btn btn-wa" href="{{ wa_link }}" target="_blank" rel="noopener">{{ t.pd_whatsapp_model }}</a>
+    </div>
+
+    <!-- ============ WHO IS THIS FOR ============ -->
+    <div class="who-card" style="margin-bottom:24px">
+      <h2>👤 {{ t.pd_who_for }}</h2>
+      <p>
+        {% if lang == 'hi' %}{{ product.who_is_this_for_hi|default:product.who_is_this_for }}{% else %}{{ product.who_is_this_for }}{% endif %}
+        {% if not product.who_is_this_for and not product.who_is_this_for_hi %}<span class="placeholder-text">{{ ph.to_be_updated }}</span>{% endif %}
+      </p>
+    </div>
+
+    <!-- ============ FULL SPECIFICATION ============ -->
+    <h2 style="font-size:var(--fs-xl)">{{ t.pd_specs }}</h2>
+    <table class="spec-table" style="margin-bottom:24px">
+      <caption class="sr-only">{{ product.name }} — {{ t.pd_specs }}</caption>
+      <tbody>
+        {% for key, value in spec_rows %}
+          <tr>
+            <th scope="row">{{ t|lookup:key }}</th>
+            <td>{{ value }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2"><span class="placeholder-text">{{ ph.to_be_updated }}</span></td></tr>
+        {% endfor %}
+        {% if product.licence_required %}
+          <tr>
+            <th scope="row">{{ t.pd_licence }}</th>
+            <td>{{ t.pd_licence_yes }}</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    <!-- ============ EMI PLANS ============ -->
     {% if product.emi_enabled and emi_plans %}
-      <div class="emi-panel">
-        <h3>EMI Options</h3>
-        <p>Choose an available tenure. Final financing approval is subject to the finance partner.</p>
+      <div class="emi-panel" style="margin-bottom:24px">
+        <h3 style="font-size:var(--fs-md)">{{ t.emi_title }}</h3>
         <div class="emi-grid">
           {% for plan in emi_plans %}
-            <div class="emi-card"><b>{{ plan.tenure_months }} months</b><strong>₹{{ plan.monthly_emi|floatformat:0 }}/month</strong><small>{{ plan.interest_rate }}% p.a. · Down payment ₹{{ plan.down_payment|floatformat:0 }}</small></div>
+            <div class="emi-card">
+              <b>{{ plan.tenure_months }} {{ t.emi_months }}</b>
+              <strong>₹{{ plan.monthly_emi|floatformat:0 }}</strong>
+              <small>{{ plan.interest_rate }}% · {{ t.emi_down }} ₹{{ plan.down_payment|floatformat:0 }}</small>
+            </div>
           {% endfor %}
         </div>
+        <p class="note" style="margin:12px 0 0">{{ t.emi_note }}</p>
       </div>
     {% endif %}
-    <div class="hero-actions"><a class="btn primary" href="{% url 'book_order' product.slug %}">Book Order</a><a class="btn ghost darktext" href="{% url 'product_enquiry' product.slug %}">Enquire</a></div>
+
+    <!-- ============ BOOK A TEST RIDE ============ -->
+    <div class="calc-panel">
+      <h2 style="font-size:var(--fs-xl)">{{ t.pd_book_test_ride }}</h2>
+      <p class="muted">{{ t.tr_sub }}</p>
+      <form method="post" action="{% url 'product_test_ride' product.slug %}" class="form-card" style="box-shadow:none;border:0;padding:0">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div>
+            <label for="{{ tr_form.name.id_for_label }}">{{ t.tr_name }} *</label>
+            {{ tr_form.name }}
+            {{ tr_form.name.errors }}
+          </div>
+          <div>
+            <label for="{{ tr_form.phone.id_for_label }}">{{ t.tr_phone }} *</label>
+            {{ tr_form.phone }}
+            {{ tr_form.phone.errors }}
+          </div>
+          <div>
+            <label for="{{ tr_form.preferred_day.id_for_label }}">{{ t.tr_day }}</label>
+            {{ tr_form.preferred_day }}
+            {{ tr_form.preferred_day.errors }}
+          </div>
+          <div>
+            <label for="{{ tr_form.product.id_for_label }}">{{ t.tr_model }}</label>
+            {{ tr_form.product }}
+            {{ tr_form.product.errors }}
+          </div>
+        </div>
+        <button class="btn btn-brand" type="submit">{{ t.tr_submit }}</button>
+        <p class="note" style="margin:0">{{ t.tr_note }}</p>
+      </form>
+    </div>
   </div>
 </section>
-<section class="wrap section"><div class="section-head compact"><h2>Related models</h2></div><div class="product-grid">{% for p in related %}<article class="product-card mini"><a href="{% url 'product_detail' p.slug %}" class="product-image-link"><div class="product-image">{% if p.image_data %}<img src="{{ p.image_data }}" alt="{{ p.name }}">{% else %}<div class="vehicle-art"><span>⚡</span><b>{{ p.name }}</b></div>{% endif %}</div></a><div class="product-body"><h3>{{ p.name }}</h3><a class="textlink" href="{% url 'product_detail' p.slug %}">View →</a></div></article>{% endfor %}</div></section>
-<script>
-function setMainImage(src){
-  const image=document.getElementById('mainImage');
-  if(image){ image.src=src; image.parentElement.href=src; }
-}
-</script>
+
+<!-- ============ RELATED ============ -->
+{% if related %}
+<section class="wrap section">
+  <div class="section-head compact"><h2 style="font-size:var(--fs-xl)">{{ t.pd_related }}</h2></div>
+  <div class="product-grid">
+    {% for p in related %}{% include 'partials/product_card.html' with p=p %}{% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% endblock %}

@@ -1,23 +1,28 @@
 {% extends 'base.html' %}
-{% block title %}Book {{ product.name }} | Akshat Agni{% endblock %}
+{% block title %}{{ product.name }} | {{ site.business_name }}{% endblock %}
 {% block content %}
 <section class="wrap form-page">
   <div class="form-intro">
-    <span class="eyebrow green">BOOK ORDER</span>
+    <span class="eyebrow">{{ t.tr_title }}</span>
     <h1>{{ product.name }}</h1>
-    <div class="price-box">
-      {% if product.offer_price %}<span class="mrp">MRP ₹{{ product.price|floatformat:0 }}</span>{% endif %}
-      <strong>₹{{ product.display_price|floatformat:0 }}</strong>
-      {% if product.discount_percent %}<span class="discount">{{ product.discount_percent|floatformat:0 }}% OFF</span>{% endif %}
+    <div class="price-row">
+      {% if product.has_price %}
+        {% if product.offer_price %}<span class="mrp">₹{{ product.price|floatformat:0 }}</span>{% endif %}
+        <strong>₹{{ product.display_price|floatformat:0 }}</strong>
+        <span class="price-label">{% if product.price_label == 'On-road' %}{{ t.pc_on_road }}{% else %}{{ t.pc_ex_showroom }}{% endif %}</span>
+      {% else %}
+        <span class="call-price">{{ t.pc_call_price }}</span>
+      {% endif %}
     </div>
-    <p>Booking request only. Final availability and payment can be confirmed by the showroom.</p>
+    <p class="note">{{ t.tr_note }}</p>
   </div>
   <form method="post" class="form-card">
     {% csrf_token %}
-    <label>Quantity <input type="number" name="quantity" min="1" value="1"></label>
+    <label for="quantity">{{ t.form_quantity }}</label>
+    <input type="number" name="quantity" id="quantity" min="1" value="1" inputmode="numeric">
     {{ form.as_p }}
-    {% if product.booking_amount %}<p><strong>Booking amount:</strong> ₹{{ product.booking_amount|floatformat:0 }}</p>{% endif %}
-    <button class="btn primary" type="submit">Submit Booking</button>
+    {% if product.booking_amount %}<p><strong>{{ t.form_submit }}: ₹{{ product.booking_amount|floatformat:0 }}</strong></p>{% endif %}
+    <button class="btn btn-brand" type="submit">{{ t.form_submit }}</button>
   </form>
 </section>
 {% endblock %}

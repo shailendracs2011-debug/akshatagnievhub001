@@ -61,6 +61,7 @@ class Product(TimeStamped):
     published = models.BooleanField(default=True)
     coming_soon = models.BooleanField(default=False)
     image_data = models.TextField(blank=True)
+    thumb_data = models.TextField(blank=True, help_text='Small version used on cards. Generated automatically on upload.')
     sku = models.CharField(max_length=60, blank=True)
     battery = models.CharField(max_length=120, blank=True, help_text='Full battery description, e.g. 3.2 kWh removable lithium')
     range_text = models.CharField(max_length=120, blank=True, help_text='Legacy free-text range, e.g. up to 120 km')
@@ -221,6 +222,7 @@ class ProductGallery(TimeStamped):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='gallery')
     caption = models.CharField(max_length=150, blank=True)
     image_data = models.TextField()
+    thumb_data = models.TextField(blank=True)
     sort_order = models.PositiveIntegerField(default=0)
     published = models.BooleanField(default=True)
     def __str__(self): return f'{self.product.name} - image'
@@ -238,6 +240,7 @@ class GalleryImage(TimeStamped):
     description_hi = models.TextField(blank=True)
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='SHOWROOM')
     image_data = models.TextField()
+    thumb_data = models.TextField(blank=True)
     published = models.BooleanField(default=True)
     featured = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
@@ -454,6 +457,7 @@ class Testimonial(TimeStamped):
     vehicle = models.CharField(max_length=160, blank=True, help_text='Vehicle bought, e.g. SPORTS SL')
     quote = models.TextField(help_text='What the customer said, in their own words.')
     photo_data = models.TextField(blank=True)
+    thumb_data = models.TextField(blank=True)
     published = models.BooleanField(default=False, help_text='Only published testimonials appear on the website.')
     sort_order = models.PositiveIntegerField(default=0)
 

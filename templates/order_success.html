@@ -1,1 +1,16 @@
-{% extends 'base.html' %}{% block content %}<section class="wrap success"><div class="success-icon">✓</div><h1>Booking request received</h1><p>Booking #{{ order.pk }} for <b>{{ order.product.name }}</b> has been recorded.</p><p>Estimated amount: <b>₹ {{ order.amount|floatformat:0 }}</b></p><a class="btn primary" href="{% url 'home' %}">Continue browsing</a></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ t.success_title }} | {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="wrap success">
+  <div class="success-icon" aria-hidden="true">✓</div>
+  <h1>{{ t.success_title }}</h1>
+  <p class="ref">#{{ order.pk }}</p>
+  <p>{% if order.product %}<b>{{ order.product.name }}</b>{% endif %}</p>
+  <p>₹{{ order.amount|floatformat:0 }}</p>
+  <p>{{ t.success_body }}</p>
+  <div class="btn-row" style="justify-content:center">
+    <a class="btn btn-brand" href="tel:{{ site.phone_primary }}">☎ {{ t.success_call }}</a>
+    <a class="btn btn-outline" href="{% url 'home' %}">{{ t.success_home }}</a>
+  </div>
+</section>
+{% endblock %}

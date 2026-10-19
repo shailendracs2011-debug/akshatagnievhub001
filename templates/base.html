@@ -152,5 +152,15 @@
   </div>
 </div>
 
+<button class="back-to-top" type="button" aria-label="Back to top" title="Back to top">↑</button>
+
+<nav class="bottom-nav" aria-label="Quick navigation">
+  <a href="{% url 'home' %}"><span class="bn-icon">🏠</span><span>{{ t.nav_home }}</span></a>
+  <a href="{% url 'category' 'e-scooter' %}"><span class="bn-icon">🛵</span><span>{{ t.nav_scooters }}</span></a>
+  <a href="{% url 'gallery' %}"><span class="bn-icon">📸</span><span>{{ t.nav_gallery }}</span></a>
+  <a href="{% url 'service' %}"><span class="bn-icon">🔧</span><span>{{ t.nav_service }}</span></a>
+  <a href="tel:{{ site.phone_primary }}"><span class="bn-icon">📞</span><span>{{ t.nav_call }}</span></a>
+</nav>
+
 </body>
 </html>

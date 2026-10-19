@@ -21,9 +21,9 @@ class Command(BaseCommand):
             },
         )
         base = Path(__file__).resolve().parents[4]
-        image = base / "static" / "images" / "showroom-banner.jpg"
+        image = base / "static" / "images" / "showroom-banner.webp"
         if image.exists():
-            data = "data:image/jpeg;base64," + base64.b64encode(image.read_bytes()).decode("ascii")
+            data = 'data:image/webp;base64,' + base64.b64encode(image.read_bytes()).decode('ascii')
             Activity.objects.update_or_create(
                 title="Akshat Agni EV Motors — Showroom",
                 defaults={

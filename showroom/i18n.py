@@ -21,6 +21,7 @@ PLACEHOLDER = {
     'hero_photo': '[HERO_PHOTO]',
     'offer_banner': '[OFFER_TEXT]',
     'map_embed': '[MAP_EMBED_URL]',
+    'range_km': '[RANGE_KM]',
 }
 
 STRINGS = {
@@ -51,7 +52,7 @@ STRINGS = {
         'catalog_eyebrow': 'OUR RANGE',
         'catalog_title': 'Electric scooters & solutions',
         'catalog_all': 'All models',
-        'catalog_models': '{n} models',
+        'catalog_models': 'models',
         'catalog_featured': 'Featured models',
         'catalog_view_gallery': 'View gallery',
         'search_placeholder': 'Search model, category or range…',
@@ -97,6 +98,7 @@ STRINGS = {
         'emi_down': 'Down payment (₹)',
         'emi_rate': 'Interest rate (% per year)',
         'emi_tenure': 'Tenure (months)',
+        'emi_months': 'months',
         'emi_monthly': 'Monthly EMI',
         'emi_total': 'Total payable',
         'emi_note': 'Final terms depend on the lender.',
@@ -136,6 +138,7 @@ STRINGS = {
         'compare_max': 'You can compare up to 3 scooters.',
         'compare_empty': 'Select at least two scooters to compare.',
         'compare_cta': 'Compare now',
+        'compare_count': 'selected',
         'compare_remove': 'Remove',
         'compare_clear': 'Clear all',
         'compare_spec': 'Specification',
@@ -224,6 +227,7 @@ STRINGS = {
         'form_email': 'Email',
         'form_message': 'Message',
         'form_submit': 'Submit',
+        'form_quantity': 'Quantity',
         'form_required': 'Required',
         'form_optional': 'Optional',
 
@@ -260,7 +264,7 @@ STRINGS = {
         'catalog_eyebrow': 'हमारी रेंज',
         'catalog_title': 'इलेक्ट्रिक स्कूटर और सोल्यूशन',
         'catalog_all': 'सभी मॉडल',
-        'catalog_models': '{n} मॉडल',
+        'catalog_models': 'मॉडल',
         'catalog_featured': 'खास मॉडल',
         'catalog_view_gallery': 'गैलरी देखें',
         'search_placeholder': 'मॉडल, कैटेगरी या रेंज खोजें…',
@@ -306,6 +310,7 @@ STRINGS = {
         'emi_down': 'डाउन पेमेंट (₹)',
         'emi_rate': 'ब्याज दर (% प्रति वर्ष)',
         'emi_tenure': 'अवधि (महीने)',
+        'emi_months': 'महीने',
         'emi_monthly': 'मासिक EMI',
         'emi_total': 'कुल भुगतान',
         'emi_note': 'अंतिम शर्तें लेंडर पर निर्भर हैं।',
@@ -345,6 +350,7 @@ STRINGS = {
         'compare_max': 'आप अधिकतम 3 स्कूटर की तुलना कर सकते हैं।',
         'compare_empty': 'तुलना के लिए कम से कम दो स्कूटर चुनें।',
         'compare_cta': 'अभी तुलना करें',
+        'compare_count': 'चुनी गई',
         'compare_remove': 'हटाएँ',
         'compare_clear': 'सब हटाएँ',
         'compare_spec': 'विवरण',
@@ -433,6 +439,7 @@ STRINGS = {
         'form_email': 'ईमेल',
         'form_message': 'संदेश',
         'form_submit': 'भेजें',
+        'form_quantity': 'मात्रा',
         'form_required': 'ज़रूरी',
         'form_optional': 'वैकल्पिक',
 

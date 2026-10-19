@@ -3,7 +3,7 @@
   <a href="{% url 'product_detail' p.slug %}" class="product-image-link" tabindex="-1" aria-hidden="true">
     <div class="product-image">
       {% if p.image_data %}
-        <img src="{{ p.image_data }}" alt="{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}" loading="lazy" decoding="async" width="400" height="300">
+        <img src="{% url 'media_image' 'product' p.pk %}?t=1" alt="{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}" loading="lazy" decoding="async" width="400" height="300">
       {% else %}
         <div class="image-fallback">
           {% include 'partials/vehicle_placeholder.html' %}
@@ -16,7 +16,7 @@
 
   <div class="product-body">
     <span class="product-tag">{{ p.category.name }}{% if p.segment %} · {{ p.segment }}{% endif %}</span>
-    <h3><a href="{% url 'product_detail' p.slug %}">{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}</a></h3>
+    <h2><a href="{% url 'product_detail' p.slug %}">{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}</a></h2>
 
     <p class="product-desc">
       {% if lang == 'hi' %}{{ p.short_description_hi|default:p.short_description }}{% else %}{{ p.short_description }}{% endif %}

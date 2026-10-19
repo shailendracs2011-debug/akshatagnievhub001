@@ -8,6 +8,8 @@ urlpatterns=[
   path('test-ride/',test_ride,name='test_ride'), path('product/<slug:slug>/test-ride/',test_ride,name='product_test_ride'),
   path('ask-for-a-part/',ask_part,name='ask_part'), path('track-request/',track_request,name='track_request'),
   path('compare/',compare,name='compare'),
+  path('img/<str:model_name>/<int:pk>/',media_image,name='media_image'),
+  path('img/site/<str:name>/',media_site_image,name='media_site_image'),
   path('service/',service_enquiry,name='service'), path('support/',support_query,name='support'), path('ticket/<str:ticket>/success/',ticket_success,name='ticket_success'),
   path('erp/login/',ERPLoginView.as_view(),name='erp_login'), path('erp/logout/',ERPLogoutView.as_view(),name='erp_logout'), path('erp/',erp_dashboard,name='erp_dashboard'),
   path('erp/settings/',erp_settings,name='erp_settings'),

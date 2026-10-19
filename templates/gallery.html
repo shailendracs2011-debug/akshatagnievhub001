@@ -1,2 +1,37 @@
-{% extends 'base.html' %}{% block title %}Gallery | Akshat Agni EV Motors{% endblock %}{% block content %}
-<section class="page-hero"><div class="wrap"><span class="eyebrow green">REAL PHOTOS</span><h1>Showroom & customer gallery</h1><p>Admin can upload, replace, delete, publish/unpublish, feature and reorder these photos without code changes.</p></div></section><section class="wrap section"><div class="filters"><a class="filter {% if not selected_gallery_category %}active{% endif %}" href="{% url 'gallery' %}">All</a>{% for value,label in gallery_categories %}<a class="filter {% if selected_gallery_category == value %}active{% endif %}" href="?category={{ value }}">{{ label }}</a>{% endfor %}</div><div class="photo-grid large">{% for g in gallery_items %}<figure class="photo"><img src="{{ g.image_data }}" alt="{{ g.title }}"><figcaption><b>{% if lang == 'hi' %}{{ g.title_hi|default:g.title }}{% else %}{{ g.title }}{% endif %}</b><small>{{ g.get_category_display }}</small></figcaption></figure>{% empty %}<div class="empty">No gallery images published yet.</div>{% endfor %}</div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ t.gal_title }} | {{ site.business_name }}{% endblock %}
+{% block meta_description %}{{ t.gal_sub }}{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">ðŸ“¸ {{ t.gal_title }}</span>
+    <h1>{{ t.gal_title }}</h1>
+    <p>{{ t.gal_sub }}</p>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="filters">
+    <a class="filter {% if not selected_gallery_category %}active{% endif %}" href="{% url 'gallery' %}">{{ t.catalog_all }}</a>
+    {% for value, label in gallery_categories %}
+      <a class="filter {% if selected_gallery_category == value %}active{% endif %}" href="?category={{ value }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  <div class="photo-grid">
+    {% for g in gallery_items %}
+      <button class="photo" type="button"
+              data-lightbox="{% url 'media_image' 'galleryimage' g.pk %}"
+              data-caption="{% if lang == 'hi' %}{{ g.title_hi|default:g.title }}{% else %}{{ g.caption|default:g.title }}{% endif %}">
+        <img src="{% url 'media_image' 'galleryimage' g.pk %}?t=1" alt="" loading="lazy" decoding="async" width="400" height="400">
+        <figcaption>
+          {% if lang == 'hi' %}{{ g.title_hi|default:g.title }}{% else %}{{ g.title }}{% endif %}
+          {% if g.caption and g.caption != g.title %}<br><small>{{ g.caption }}</small>{% endif %}
+        </figcaption>
+      </button>
+    {% empty %}
+      <div class="empty">{{ ph.to_be_updated }}</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

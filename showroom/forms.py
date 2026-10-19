@@ -3,6 +3,7 @@ import io
 
 from django import forms
 
+from .images import bytes_to_data_url, thumbnail_data_url, HERO_BYTES, HERO_EDGE, THUMBNAIL_BYTES
 from .models import (
     Enquiry,
     GalleryImage,
@@ -30,43 +31,15 @@ def image_to_data_url(uploaded):
     """
     if not uploaded:
         return ''
-    try:
-        from PIL import Image
-    except ImportError:
-        raw = uploaded.read()
-        encoded = base64.b64encode(raw).decode('ascii')
-        content_type = getattr(uploaded, 'content_type', 'image/jpeg') or 'image/jpeg'
-        return f'data:{content_type};base64,{encoded}'
-
     uploaded.seek(0)
-    try:
-        image = Image.open(io.BytesIO(uploaded.read()))
-        image.load()
-    except Exception:
-        uploaded.seek(0)
-        raw = uploaded.read()
-        encoded = base64.b64encode(raw).decode('ascii')
-        content_type = getattr(uploaded, 'content_type', 'image/jpeg') or 'image/jpeg'
-        return f'data:{content_type};base64,{encoded}'
-
-    if image.mode in ('RGBA', 'LA', 'P'):
-        image = image.convert('RGBA')
-    else:
-        image = image.convert('RGB')
-
-    if max(image.size) > MAX_IMAGE_EDGE:
-        image.thumbnail((MAX_IMAGE_EDGE, MAX_IMAGE_EDGE), Image.LANCZOS)
-
-    payload = None
-    for quality in (82, 74, 66, 58, 50):
-        buffer = io.BytesIO()
-        image.save(buffer, 'WEBP', quality=quality, method=6)
-        payload = buffer.getvalue()
-        if len(payload) <= MAX_IMAGE_BYTES:
-            break
-
-    encoded = base64.b64encode(payload).decode('ascii')
-    return f'data:image/webp;base64,{encoded}'
+    raw = uploaded.read()
+    uploaded.seek(0)
+    optimized = bytes_to_data_url(raw)
+    if optimized:
+        return optimized
+    encoded = base64.b64encode(raw).decode('ascii')
+    content_type = getattr(uploaded, 'content_type', 'image/jpeg') or 'image/jpeg'
+    return f'data:{content_type};base64,{encoded}'
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -98,7 +71,10 @@ class ProductAdminForm(forms.ModelForm):
         obj = super().save(commit=False)
         uploaded = self.cleaned_data.get('image')
         if uploaded:
-            obj.image_data = image_to_data_url(uploaded)
+            raw = uploaded.read()
+            uploaded.seek(0)
+            obj.image_data = bytes_to_data_url(raw)
+            obj.thumb_data = thumbnail_data_url(raw)
         if commit:
             obj.save()
         return obj
@@ -122,7 +98,10 @@ class ProductGalleryForm(forms.ModelForm):
         obj = super().save(commit=False)
         uploaded = self.cleaned_data.get('image')
         if uploaded:
-            obj.image_data = image_to_data_url(uploaded)
+            raw = uploaded.read()
+            uploaded.seek(0)
+            obj.image_data = bytes_to_data_url(raw)
+            obj.thumb_data = thumbnail_data_url(raw)
         if commit:
             obj.save()
         return obj
@@ -147,9 +126,12 @@ class GalleryImageAdminForm(forms.ModelForm):
 
     def save(self, commit=True):
         obj = super().save(commit=False)
-        uploaded = self.cleaned_data.get('image')
+        uploaded = self.cleaned_data.get('photo')
         if uploaded:
-            obj.image_data = image_to_data_url(uploaded)
+            raw = uploaded.read()
+            uploaded.seek(0)
+            obj.photo_data = bytes_to_data_url(raw, THUMBNAIL_BYTES, 320)
+            obj.thumb_data = thumbnail_data_url(raw, 160, 12 * 1024)
         if commit:
             obj.save()
         return obj
@@ -171,9 +153,12 @@ class TestimonialAdminForm(forms.ModelForm):
 
     def save(self, commit=True):
         obj = super().save(commit=False)
-        uploaded = self.cleaned_data.get('photo')
+        uploaded = self.cleaned_data.get('image')
         if uploaded:
-            obj.photo_data = image_to_data_url(uploaded)
+            raw = uploaded.read()
+            uploaded.seek(0)
+            obj.image_data = bytes_to_data_url(raw)
+            obj.thumb_data = thumbnail_data_url(raw)
         if commit:
             obj.save()
         return obj
@@ -224,16 +209,21 @@ class SiteSettingAdminForm(forms.ModelForm):
         hero_web = self.cleaned_data.get('hero_image_web')
         hero_mobile = self.cleaned_data.get('hero_image_mobile')
         banner_image = self.cleaned_data.get('offer_banner_image')
+
         if hero:
             obj.hero_image_data = image_to_data_url(hero)
         if hero_web:
-            obj.hero_image_web = image_to_data_url(hero_web)
+            raw = hero_web.read(); hero_web.seek(0)
+            obj.hero_image_web = bytes_to_data_url(raw, HERO_BYTES, HERO_EDGE)
         if hero_mobile:
-            obj.hero_image_mobile = image_to_data_url(hero_mobile)
+            raw = hero_mobile.read(); hero_mobile.seek(0)
+            obj.hero_image_mobile = bytes_to_data_url(raw, HERO_BYTES, HERO_EDGE)
         if banner_image:
-            obj.offer_banner_image = image_to_data_url(banner_image)
+            raw = banner_image.read(); banner_image.seek(0)
+            obj.offer_banner_image = thumbnail_data_url(raw)
         if logo:
-            obj.logo_data = image_to_data_url(logo)
+            raw = logo.read(); logo.seek(0)
+            obj.logo_data = bytes_to_data_url(raw, THUMBNAIL_BYTES, 240)
         if commit:
             obj.save()
         return obj
@@ -427,6 +417,30 @@ class SiteSettingForm(forms.ModelForm):
         help_text='Upload a new signature image to replace the current signature.',
         widget=forms.ClearableFileInput(attrs={'accept': 'image/png'}),
     )
+    hero_image_web = forms.ImageField(
+        required=False,
+        label='Hero Photo — Web (wide) / हीरो फोटो — वेब',
+        help_text='Wide photo for desktop screens. Landscape, under 150 KB.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+    hero_image_mobile = forms.ImageField(
+        required=False,
+        label='Hero Photo — Mobile (tall) / हीरो फोटो — मोबाइल',
+        help_text='Tall photo for phones. Portrait, under 150 KB.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+    logo_image = forms.ImageField(
+        required=False,
+        label='Logo / लोगो',
+        help_text='Upload a new logo to replace the current logo.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
+    offer_banner_image = forms.ImageField(
+        required=False,
+        label='Offer Banner Image / ऑफर बैनर फोटो',
+        help_text='Optional small image shown beside the offer banner text.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+    )
 
     class Meta:
         model = SiteSetting
@@ -436,9 +450,11 @@ class SiteSettingForm(forms.ModelForm):
             'signatory_name', 'signature_image',
             'tagline', 'tagline_hi', 'about', 'about_hi',
             'hero_title', 'hero_title_hi', 'hero_subtitle', 'hero_subtitle_hi',
+            'hero_image_web', 'hero_image_mobile', 'logo_image',
             'landmark', 'landmark_hi', 'opening_hours', 'opening_hours_hi',
             'google_maps_url', 'map_embed_url',
             'offer_banner_text', 'offer_banner_text_hi', 'offer_banner_link',
+            'offer_banner_image',
             'why_brand_authorised', 'why_brand_authorised_hi',
             'why_warranty', 'why_warranty_hi',
             'why_free_service', 'why_free_service_hi',
@@ -452,6 +468,22 @@ class SiteSettingForm(forms.ModelForm):
         sig = self.cleaned_data.get('signature_image')
         if sig:
             obj.signature_data = image_to_data_url(sig)
+        hero_web = self.cleaned_data.get('hero_image_web')
+        if hero_web:
+            raw = hero_web.read(); hero_web.seek(0)
+            obj.hero_image_web = bytes_to_data_url(raw, HERO_BYTES, HERO_EDGE)
+        hero_mobile = self.cleaned_data.get('hero_image_mobile')
+        if hero_mobile:
+            raw = hero_mobile.read(); hero_mobile.seek(0)
+            obj.hero_image_mobile = bytes_to_data_url(raw, HERO_BYTES, HERO_EDGE)
+        logo = self.cleaned_data.get('logo_image')
+        if logo:
+            raw = logo.read(); logo.seek(0)
+            obj.logo_data = bytes_to_data_url(raw, THUMBNAIL_BYTES, 240)
+        banner = self.cleaned_data.get('offer_banner_image')
+        if banner:
+            raw = banner.read(); banner.seek(0)
+            obj.offer_banner_image = thumbnail_data_url(raw)
         if commit:
             obj.save()
         return obj

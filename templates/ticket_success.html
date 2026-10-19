@@ -1,1 +1,15 @@
-{% extends 'base.html' %}{% block content %}<section class="wrap success"><div class="success-icon">✓</div><h1>Request received</h1><p>Your ticket number is <b>{{ ticket.ticket_no }}</b>.</p><p>Our team can manage this request from the ERP dashboard.</p><a class="btn primary" href="{% url 'home' %}">Back to website</a></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ t.tr_title }} | {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="wrap success">
+  <div class="success-icon" aria-hidden="true">✓</div>
+  <h1>{{ t.success_title }}</h1>
+  <p class="ref">{{ ticket.ticket_no }}</p>
+  <p>{{ t.success_ticket }} <b>{{ ticket.ticket_no }}</b></p>
+  <p>{{ t.success_body }}</p>
+  <div class="btn-row" style="justify-content:center">
+    <a class="btn btn-brand" href="tel:{{ site.phone_primary }}">☎ {{ t.success_call }}</a>
+    <a class="btn btn-outline" href="{% url 'home' %}">{{ t.success_home }}</a>
+  </div>
+</section>
+{% endblock %}

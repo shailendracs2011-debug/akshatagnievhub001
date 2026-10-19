@@ -1,10 +1,331 @@
-{% extends 'base.html' %}{% block title %}{{ site.business_name }} | Electric Mobility{% endblock %}{% block content %}
-<section class="hero"><div class="hero-bg" {% if site.hero_image_data %}style="background-image:linear-gradient(90deg,rgba(3,31,18,.88),rgba(3,31,18,.28)),url('{{ site.hero_image_data }}')"{% endif %}></div><div class="wrap hero-inner"><div class="hero-copy"><span class="eyebrow">AKSHAT AGNI EV MOTORS</span><h1>{% if lang == 'hi' %}{{ site.hero_title_hi }}{% else %}{{ site.hero_title }}{% endif %}</h1><p>{% if lang == 'hi' %}{{ site.hero_subtitle_hi|default:site.tagline_hi }}{% else %}{{ site.hero_subtitle|default:site.tagline }}{% endif %}</p><div class="hero-actions"><a class="btn primary" href="#catalog">Explore EVs</a><a class="btn ghost" href="{% url 'enquiry' %}">Book / Enquire</a></div></div><div class="hero-card"><div>⚡</div><b>EV-first dealership</b><span>Sales • Service • Batteries • Spares</span></div></div></section>
-<section class="wrap searchbar"><form method="get"><input name="q" value="{{ query }}" placeholder="Search models, category, battery, range…"><button>Search</button></form></section>
-<section class="wrap" id="catalog"><div class="section-head"><div><span class="eyebrow green">OUR RANGE</span><h2>Electric vehicles & solutions</h2></div><a href="{% url 'gallery' %}" class="textlink">View gallery →</a></div>
-<div class="category-grid">{% for c in categories %}<a class="category-card" href="{% url 'category' c.slug %}"><span class="icon">{% if 'Scooter' in c.name %}🛵{% elif 'Auto' in c.name %}🛺{% elif 'Bike' in c.name %}🏍️{% elif 'Battery' in c.name %}🔋{% elif 'Spare' in c.name %}⚙️{% else %}⚡{% endif %}</span><b>{% if lang == 'hi' %}{{ c.name_hi|default:c.name }}{% else %}{{ c.name }}{% endif %}</b><small>{{ c.products.count }} models</small></a>{% endfor %}</div>
-<div class="section-head compact"><h2>Featured models</h2></div><div class="product-grid">{% for p in featured %}<article class="product-card"><a href="{% url 'product_detail' p.slug %}" class="product-image-link"><div class="product-image">{% if p.image_data %}<img src="{{ p.image_data }}" alt="{{ p.name }}">{% else %}<div class="vehicle-art"><span>⚡</span><b>{{ p.name }}</b><small>{% if p.coming_soon %}Coming Soon{% else %}EV MODEL{% endif %}</small></div>{% endif %}{% if p.coming_soon %}<em>Coming Soon</em>{% endif %}</div></a><div class="product-body"><div class="tag">{{ p.category.name }}</div><h3>{% if lang == 'hi' %}{{ p.name_hi|default:p.name }}{% else %}{{ p.name }}{% endif %}</h3><p>{% if lang == 'hi' %}{{ p.short_description_hi|default:p.short_description }}{% else %}{{ p.short_description }}{% endif %}</p><div class="product-foot"><b>{% if p.price %}₹ {{ p.display_price|floatformat:0 }}{% else %}Price on enquiry{% endif %}</b><a href="{% url 'product_detail' p.slug %}">Details →</a></div></div></article>{% empty %}<div class="empty">Add products from Admin → Products.</div>{% endfor %}</div></section>
-<section class="green-band"><div class="wrap stats"><div><b>Sales</b><span>EV scooters, bikes & autos</span></div><div><b>Service</b><span>Battery + electrical support</span></div><div><b>Spare Parts</b><span>Everyday EV components</span></div><div><b>Support</b><span>Track customer requests</span></div><div><b>Email</b><span><a href="mailto:info@akshatagnievhub.in">info@akshatagnievhub.in</a></span></div><div><b>Instagram</b><span><a href="https://www.instagram.com/akshatagnievhub" target="_blank" rel="noopener">Follow us</a></span></div></div></section>
-<section class="wrap gallery-preview"><div class="section-head"><div><span class="eyebrow green">REAL SHOWROOM MOMENTS</span><h2>Gallery</h2></div><a class="textlink" href="{% url 'gallery' %}">See all →</a></div><div class="photo-grid">{% for g in gallery_items|slice:':6' %}<div class="photo"><img src="{{ g.image_data }}" alt="{{ g.title }}"><span>{{ g.title }}</span></div>{% empty %}<div class="empty">Upload real showroom/event photos from Admin → Gallery Images.</div>{% endfor %}</div></section>
-<section class="wrap cta"><div><span class="eyebrow">NEED HELP?</span><h2>Choose an EV. We'll help with the rest.</h2><p>Enquiry, service, support and booking are connected to the same database.</p></div><div class="cta-actions"><a class="btn primary" href="{% url 'enquiry' %}">General Enquiry</a><a class="btn dark" href="{% url 'service' %}">Service Request</a></div></section>
+{% extends 'base.html' %}
+{% load showroom_tags %}
+{% block title %}{{ site.business_name }} | {{ t.hero_title }}{% endblock %}
+{% block meta_description %}{{ t.hero_title }}. {{ t.hero_sub }} {{ site.address }}.{% endblock %}
+{% block content %}
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  {% if site.hero_image_web or site.hero_image_mobile or site.hero_image_data %}
+    <div class="hero-media">
+      <picture>
+        {% if site.hero_image_mobile %}<source media="(max-width: 959px)" srcset="{% url 'media_site_image' 'hero-mobile' %}?w=640">{% endif %}
+        {% if site.hero_image_web %}<source media="(min-width: 960px)" srcset="{% url 'media_site_image' 'hero' %}?w=1200">{% endif %}
+        <img src="{% url 'media_site_image' 'hero' %}?w=1200" srcset="{% url 'media_site_image' 'hero' %}?w=640 640w, {% url 'media_site_image' 'hero' %}?w=1200 1200w" sizes="100vw" alt="{{ t.hero_photo_pending }}" width="1200" height="800" fetchpriority="high" decoding="async">
+      </picture>
+    </div>
+  {% endif %}
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <span class="hero-badge">⚡ {{ t.hero_eyebrow }}</span>
+      <h1>{{ t.hero_title }}</h1>
+      <p class="hero-sub">{{ t.hero_sub }}</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="{% url 'category' 'e-scooter' %}">{{ t.hero_cta_scooters }}</a>
+        <a class="btn btn-wa" href="{{ wa_link }}" target="_blank" rel="noopener">{{ t.hero_cta_whatsapp }}</a>
+      </div>
+    </div>
+    {% if not site.hero_image_web and not site.hero_image_mobile and not site.hero_image_data %}
+      <div class="hero-photo-slot">
+        {% include 'partials/vehicle_placeholder.html' %}
+        <span>{{ ph.hero_photo }} — {{ t.hero_photo_pending }}</span>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ============ SEARCH ============ -->
+<section class="wrap searchbar">
+  <form method="get" role="search">
+    <label class="sr-only" for="home-search">{{ t.search_placeholder }}</label>
+    <input id="home-search" name="q" value="{{ query }}" placeholder="{{ t.search_placeholder }}">
+    <button type="submit">{{ t.search_submit }}</button>
+  </form>
+</section>
+
+<!-- ============ CATEGORY QUICK NAV ============ -->
+{% if categories %}
+<section class="wrap" style="padding-bottom:8px">
+  <div class="category-grid">
+    {% for c in categories %}
+      <a class="category-card" href="{% url 'category' c.slug %}">
+        <span class="icon" aria-hidden="true">{% if 'Scooter' in c.name %}🛵{% elif 'Auto' in c.name %}🛺{% elif 'Bike' in c.name %}🏍️{% elif 'Battery' in c.name %}🔋{% elif 'Spare' in c.name %}⚙️{% else %}⚡{% endif %}</span>
+        <b>{% if lang == 'hi' %}{{ c.name_hi|default:c.name }}{% else %}{{ c.name }}{% endif %}</b>
+        <small>{{ c.products.count }} {{ t.catalog_models }}</small>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ============ ACTIONABLE TILES ============ -->
+<section class="wrap section">
+  <div class="tile-grid">
+    <article class="tile">
+      <span class="tile-icon" aria-hidden="true">🛵</span>
+      <h2>{{ t.tile_sales_title }}</h2>
+      <p>{{ t.tile_sales_promise }}</p>
+      <a class="btn btn-brand" href="{% url 'category' 'e-scooter' %}">{{ t.tile_sales_cta }}</a>
+    </article>
+    <article class="tile">
+      <span class="tile-icon" aria-hidden="true">🔧</span>
+      <h2>{{ t.tile_service_title }}</h2>
+      <p>{{ t.tile_service_promise }}</p>
+      <a class="btn btn-brand" href="{% url 'service' %}">{{ t.tile_service_cta }}</a>
+    </article>
+    <article class="tile">
+      <span class="tile-icon" aria-hidden="true">⚙️</span>
+      <h2>{{ t.tile_parts_title }}</h2>
+      <p>{{ t.tile_parts_promise }}</p>
+      <a class="btn btn-brand" href="{% url 'ask_part' %}">{{ t.tile_parts_cta }}</a>
+    </article>
+    <article class="tile">
+      <span class="tile-icon" aria-hidden="true">📞</span>
+      <h2>{{ t.tile_support_title }}</h2>
+      <p>{{ t.tile_support_promise }}</p>
+      <a class="btn btn-brand" href="{% url 'track_request' %}">{{ t.tile_support_cta }}</a>
+    </article>
+  </div>
+</section>
+
+<!-- ============ PRODUCT RANGE ============ -->
+<section class="wrap section" id="catalog">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">{{ t.catalog_eyebrow }}</span>
+      <h2>{{ t.catalog_title }}</h2>
+    </div>
+    <a href="{% url 'gallery' %}" class="textlink">{{ t.catalog_view_gallery }} →</a>
+  </div>
+
+  <div class="section-head compact" style="margin-top:24px">
+    <h2 style="font-size:var(--fs-xl)">{{ t.catalog_featured }}</h2>
+  </div>
+
+  <div class="product-grid">
+    {% for p in featured %}{% include 'partials/product_card.html' with p=p %}{% empty %}
+      <div class="empty">{{ t.catalog_all }} — {{ ph.to_be_updated }}</div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:24px;text-align:center">
+    <a class="btn btn-outline" href="{% url 'category' 'e-scooter' %}">{{ t.catalog_all }} →</a>
+  </div>
+</section>
+
+<!-- ============ WHY CHOOSE US ============ -->
+<section class="defer-render wrap section" style="background:var(--brand-050);border-radius:24px;padding:32px 16px">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">{{ t.why_title }}</span>
+      <h2>{{ t.why_title }}</h2>
+      <p class="muted" style="max-width:60ch">{{ t.why_sub }}</p>
+    </div>
+  </div>
+  <div class="why-grid">
+    <article class="why-card">
+      <h3>🏷️ {{ t.why_1_label }}</h3>
+      {% if site.why_brand_authorised %}
+        <p>{% if lang == 'hi' %}{{ site.why_brand_authorised_hi|default:site.why_brand_authorised }}{% else %}{{ site.why_brand_authorised }}{% endif %}</p>
+      {% else %}<span class="placeholder-chip">{{ ph.brand_authorisation }}</span>{% endif %}
+    </article>
+    <article class="why-card">
+      <h3>🛡️ {{ t.why_2_label }}</h3>
+      {% if site.why_warranty %}
+        <p>{% if lang == 'hi' %}{{ site.why_warranty_hi|default:site.why_warranty }}{% else %}{{ site.why_warranty }}{% endif %}</p>
+      {% else %}<span class="placeholder-chip">{{ ph.warranty_terms }}</span>{% endif %}
+    </article>
+    <article class="why-card">
+      <h3>🎁 {{ t.why_3_label }}</h3>
+      {% if site.why_free_service %}
+        <p>{% if lang == 'hi' %}{{ site.why_free_service_hi|default:site.why_free_service }}{% else %}{{ site.why_free_service }}{% endif %}</p>
+      {% else %}<span class="placeholder-chip">{{ ph.free_first_service }}</span>{% endif %}
+    </article>
+    <article class="why-card">
+      <h3>📍 {{ t.why_4_label }}</h3>
+      {% if site.why_local_centre %}
+        <p>{% if lang == 'hi' %}{{ site.why_local_centre_hi|default:site.why_local_centre }}{% else %}{{ site.why_local_centre }}{% endif %}</p>
+      {% else %}<span class="placeholder-chip">{{ ph.local_service_centre }}</span>{% endif %}
+    </article>
+  </div>
+</section>
+
+<!-- ============ SAVINGS CALCULATOR ============ -->
+<section class="defer-render wrap section" id="savings-calc"
+         data-save-label="{{ t.savings_saving }}"
+         data-extra-label="{{ t.savings_ev_year }}">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">💰 {{ t.savings_title }}</span>
+      <h2>{{ t.savings_title }}</h2>
+      <p class="muted" style="max-width:60ch">{{ t.savings_sub }}</p>
+    </div>
+  </div>
+  <div class="calc-grid">
+    <div class="calc-panel">
+      <div class="calc-field">
+        <label for="s-daily-km">{{ t.savings_daily_km }}</label>
+        <input id="s-daily-km" type="number" inputmode="numeric" min="0" max="300" value="{{ site.default_daily_km|floatformat:0 }}">
+      </div>
+      <div class="calc-field">
+        <label for="s-petrol-price">{{ t.savings_petrol_price }}</label>
+        <input id="s-petrol-price" type="number" inputmode="decimal" min="0" step="0.5" value="{{ site.default_petrol_price|floatformat:2 }}">
+      </div>
+      <div class="calc-field">
+        <label for="s-petrol-mileage">{{ t.savings_petrol_mileage }}</label>
+        <input id="s-petrol-mileage" type="number" inputmode="decimal" min="1" step="0.5" value="{{ site.default_petrol_mileage|floatformat:1 }}">
+      </div>
+      <div class="calc-field">
+        <label for="s-power-rate">{{ t.savings_electricity_rate }}</label>
+        <input id="s-power-rate" type="number" inputmode="decimal" min="0" step="0.5" value="{{ site.default_electricity_rate|floatformat:2 }}">
+      </div>
+      <div class="calc-field">
+        <label for="s-ev-km">{{ t.savings_ev_efficiency }}</label>
+        <input id="s-ev-km" type="number" inputmode="decimal" min="1" step="1" value="{{ site.default_ev_km_per_unit|floatformat:0 }}">
+      </div>
+      <p class="note" style="margin:0">{{ t.savings_note }}</p>
+    </div>
+    <div class="calc-result">
+      <div class="calc-row"><span>{{ t.savings_petrol_year }}</span><strong id="s-petrol-year">—</strong></div>
+      <div class="calc-row"><span>{{ t.savings_ev_year }}</span><strong id="s-ev-year">—</strong></div>
+      <div class="calc-row calc-saving">
+        <span id="s-saving-label">{{ t.savings_saving }}</span>
+        <strong id="s-saving">—</strong>
+      </div>
+      <p style="margin:0"><span class="approx-tag">{{ t.savings_approx }}</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EMI CALCULATOR ============ -->
+<section class="defer-render wrap section" id="emi-calc">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">📄 {{ t.emi_title }}</span>
+      <h2>{{ t.emi_title }}</h2>
+      <p class="muted" style="max-width:60ch">{{ t.emi_sub }}</p>
+    </div>
+  </div>
+  <div class="calc-grid">
+    <div class="calc-panel">
+      <div class="calc-field">
+        <label for="e-price">{{ t.emi_price }}</label>
+        <input id="e-price" type="number" inputmode="numeric" min="0" step="1000" value="{{ emi_default_price }}">
+      </div>
+      <div class="calc-field">
+        <label for="e-down">{{ t.emi_down }}</label>
+        <input id="e-down" type="number" inputmode="numeric" min="0" step="1000" value="{{ emi_default_down }}">
+      </div>
+      <div class="calc-field">
+        <label for="e-rate">{{ t.emi_rate }}</label>
+        <input id="e-rate" type="number" inputmode="decimal" min="0" step="0.25" value="9">
+      </div>
+      <div class="calc-field">
+        <label for="e-tenure">{{ t.emi_tenure }}</label>
+        <input id="e-tenure" type="number" inputmode="numeric" min="1" max="84" step="1" value="36">
+      </div>
+    </div>
+    <div class="calc-result">
+      <div class="calc-row"><span>{{ t.emi_monthly }}</span><strong id="e-monthly">—</strong></div>
+      <div class="calc-row"><span>{{ t.emi_total }}</span><strong id="e-total">—</strong></div>
+      <p style="margin:0"><span class="approx-tag">{{ t.emi_note }}</span></p>
+      <p class="note" style="margin:0">{{ t.emi_disclaimer }}</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+{% if faq_items %}
+<section class="defer-render wrap section" id="faq">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">❓ {{ t.faq_title }}</span>
+      <h2>{{ t.faq_title }}</h2>
+      <p class="muted" style="max-width:60ch">{{ t.faq_sub }}</p>
+    </div>
+  </div>
+  <div class="faq-list">
+    {% for f in faq_items %}
+      <div class="faq-item" data-open="false">
+        <button class="faq-q" type="button" aria-expanded="false">
+          <span>{% if lang == 'hi' %}{{ f.question_hi|default:f.question }}{% else %}{{ f.question }}{% endif %}</span>
+        </button>
+        <div class="faq-a" hidden>
+          {% if lang == 'hi' %}{{ f.answer_hi|default:f.answer }}{% else %}{{ f.answer }}{% endif %}
+          {% if f.needs_confirmation %}<span class="faq-confirm">{{ t.faq_needs_confirm }}</span>{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ============ GALLERY PREVIEW ============ -->
+{% if gallery_items %}
+<section class="defer-render wrap gallery-preview">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">📸 {{ t.gal_title }}</span>
+      <h2>{{ t.gal_title }}</h2>
+    </div>
+    <a class="textlink" href="{% url 'gallery' %}">{{ t.catalog_view_gallery }} →</a>
+  </div>
+  <div class="photo-grid">
+    {% for g in gallery_items|slice:':6' %}
+      <button class="photo" type="button"
+              data-lightbox="{% url 'media_image' 'galleryimage' g.pk %}"
+              data-caption="{% if lang == 'hi' %}{{ g.caption|default:g.title }}{% else %}{{ g.caption|default:g.title }}{% endif %}">
+        <img src="{% url 'media_image' 'galleryimage' g.pk %}?t=1" alt="" loading="lazy" decoding="async" width="400" height="400">
+        <figcaption>{% if lang == 'hi' %}{{ g.title_hi|default:g.title }}{% else %}{{ g.title }}{% endif %}</figcaption>
+      </button>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ============ TESTIMONIALS (hidden until the owner adds real entries) ============ -->
+{% if testimonials %}
+<section class="defer-render wrap section">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">⭐ {{ t.testi_title }}</span>
+      <h2>{{ t.testi_title }}</h2>
+      <p class="muted">{{ t.testi_sub }}</p>
+    </div>
+  </div>
+  <div class="testi-grid">
+    {% for tm in testimonials %}
+      <figure class="testi-card">
+        <div class="stars" aria-label="5 out of 5">★★★★★</div>
+        <blockquote>“{{ tm.quote }}”</blockquote>
+        <figcaption>
+          {% if tm.photo_data %}<img src="{% url 'media_image' 'testimonial' tm.pk %}?t=1" alt="{{ tm.name }}" loading="lazy" decoding="async" width="48" height="48">{% endif %}
+          <span>
+            <span class="testi-name">{{ tm.name }}</span>
+            <span class="testi-meta">
+              {% if tm.town %}{{ tm.town }}{% endif %}{% if tm.vehicle %} · {{ tm.vehicle }}{% endif %}
+            </span>
+          </span>
+        </figcaption>
+      </figure>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ============ CTA ============ -->
+<section class="defer-render wrap">
+  <div class="cta">
+    <div>
+      <span class="eyebrow on-dark">{{ t.cta_title }}</span>
+      <h2>{{ t.cta_title }}</h2>
+      <p>{{ t.cta_sub }}</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="tel:{{ site.phone_primary }}">☎ {{ site.phone_primary }}</a>
+      <a class="btn btn-wa" href="{{ wa_link }}" target="_blank" rel="noopener">{{ t.hero_cta_whatsapp }}</a>
+    </div>
+  </div>
+</section>
+
 {% endblock %}
