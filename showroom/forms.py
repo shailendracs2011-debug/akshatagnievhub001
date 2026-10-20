@@ -127,12 +127,12 @@ class GalleryImageAdminForm(forms.ModelForm):
 
     def save(self, commit=True):
         obj = super().save(commit=False)
-        uploaded = self.cleaned_data.get('photo')
+        uploaded = self.cleaned_data.get('image')
         if uploaded:
             raw = uploaded.read()
             uploaded.seek(0)
-            obj.photo_data = bytes_to_data_url(raw, THUMBNAIL_BYTES, 320)
-            obj.thumb_data = thumbnail_data_url(raw, 160, 12 * 1024)
+            obj.image_data = bytes_to_data_url(raw)
+            obj.thumb_data = thumbnail_data_url(raw)
         if commit:
             obj.save()
         return obj
