@@ -95,7 +95,6 @@
       </p>
       <p><a class="foot-tel" href="{{ wa_link }}" target="_blank" rel="noopener">WhatsApp {{ site.whatsapp }}</a></p>
       {% if site.email %}<p><a class="foot-tel" href="mailto:{{ site.email }}">✉ {{ site.email }}</a></p>{% endif %}
-      {% if site.instagram_url %}<p><a class="foot-tel" href="{{ site.instagram_url }}" target="_blank" rel="noopener">📸 {{ t.foot_instagram }}</a></p>{% endif %}
       <div>
         <a class="map-button" href="{{ site.google_maps_url|default:'https://share.google/fejZNy8BmLFDCTDX1' }}" target="_blank" rel="noopener">▤ {{ t.foot_map }}</a>
       </div>
@@ -121,7 +120,6 @@
         <li><a href="{% url 'enquiry' %}">{{ t.enquiry_title }}</a></li>
         <li><a href="{% url 'test_ride' %}">{{ t.pd_book_test_ride }}</a></li>
       </ul>
-      {% if site.website %}<p><a href="{{ site.website }}" target="_blank" rel="noopener">{{ site.website }}</a></p>{% endif %}
     </div>
   </div>
 
