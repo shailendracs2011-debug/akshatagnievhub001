@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.db.models import Q, Sum, Count, F
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
@@ -17,6 +17,7 @@ from .forms import (
     EnquiryForm,
     OrderForm,
     PartRequestForm,
+    SaleForm,
     ServiceQueryForm,
     SupportQueryForm,
     SiteSettingForm,
@@ -379,6 +380,67 @@ def erp_dashboard(request):
 def erp_table(request, title, rows, kind): return render(request,'erp/table.html',{'title':title,'rows':rows,'kind':kind})
 @staff_member_required
 def erp_sales(request): return erp_table(request,'Sales',Sale.objects.select_related('product','customer').all(),'sales')
+
+
+@staff_member_required
+def erp_add_sale(request):
+    if request.method == 'POST':
+        form = SaleForm(request.POST)
+        if form.is_valid():
+            sale = form.save(commit=False)
+            if not sale.invoice_no:
+                sale.invoice_no = _next_invoice_no()
+            sale.save()
+            messages.success(request, f'Sale {sale.invoice_no} recorded.')
+            return redirect('erp_sales')
+    else:
+        form = SaleForm()
+    ctx = base_context(request); ctx.update({'form': form, 'title': 'Add Sale'})
+    return render(request, 'erp/add_sell.html', ctx)
+
+
+@staff_member_required
+def erp_edit_sale(request, pk):
+    sale = get_object_or_404(Sale, pk=pk)
+    if request.method == 'POST':
+        form = SaleForm(request.POST, instance=sale)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Sale {sale.invoice_no} updated.')
+            return redirect('erp_sales')
+    else:
+        form = SaleForm(instance=sale)
+    ctx = base_context(request); ctx.update({'form': form, 'title': 'Edit Sale', 'sale': sale})
+    return render(request, 'erp/add_sell.html', ctx)
+
+
+@staff_member_required
+def erp_customer_json(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    return JsonResponse({'name': customer.name, 'phone': customer.mobile})
+
+
+@staff_member_required
+def erp_order_json(request, pk):
+    order = get_object_or_404(Order.objects.select_related('product'), pk=pk)
+    return JsonResponse({
+        'name': order.name,
+        'phone': order.phone,
+        'product_id': order.product.pk if order.product else '',
+        'product': order.product.name if order.product else '',
+        'quantity': order.quantity,
+        'amount': str(order.amount),
+        'payment_mode': order.payment_mode,
+    })
+
+
+def _next_invoice_no():
+    today = date.today()
+    prefix = f'INV-{today:%y%m%d}-'
+    n = Sale.objects.filter(invoice_no__startswith=prefix).count() + 1
+    return f'{prefix}{n:04d}'
+
+
 @staff_member_required
 def erp_purchases(request): return erp_table(request,'Purchases',Purchase.objects.select_related('product','supplier').all(),'purchases')
 @staff_member_required

@@ -1,0 +1,90 @@
+{% extends 'erp/base.html' %}{% block content %}
+<style>
+.sell-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+.sell-form > *:nth-child(-2){grid-column:span 2}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-weight:800;color:var(--muted)}
+.field .input,.field select{width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.field.full{grid-column:span 2}
+.actions{grid-column:span 2;display:flex;gap:10px;margin-top:8px}
+.alert{background:#fff0f0;color:#b22;border-radius:9px;padding:10px;font-size:11px;margin-bottom:10px}
+.ok{background:#f0fff4;color:#1b5e20;border-radius:9px;padding:10px;font-size:11px;margin-bottom:10px}
+</style>
+
+{% if messages %}
+<div class="page-actions">{% for m in messages %}<div class="alert">{{ m }}</div>{% endfor %}</div>
+{% endif %}
+
+<div class="page-actions"><a class="btn" href="{% url 'erp_sales' %}">← Back to Sales</a></div>
+
+<section class="panel"><h3>{{ title }}</h3>
+<form method="post" class="sell-form" novalidate>
+  {% csrf_token %}
+  {% if sale %}<input type="hidden" name="sale_id" value="{{ sale.pk }}">{% endif %}
+
+  <div class="field full"><label>{{ form.customer.label }}</label>{{ form.customer }}</div>
+  <div class="field full"><label>{{ form.order.label }}</label>{{ form.order }}</div>
+
+  <div class="field"><label>{{ form.customer_name.label }}</label>{{ form.customer_name }}</div>
+  <div class="field"><label>{{ form.phone.label }}</label>{{ form.phone }}</div>
+  <div class="field"><label>{{ form.product.label }}</label>{{ form.product }}</div>
+  <div class="field"><label>{{ form.quantity.label }}</label>{{ form.quantity }}</div>
+
+  <div class="field"><label>{{ form.amount.label }}</label>{{ form.amount }}</div>
+  <div class="field"><label>{{ form.mrp_amount.label }}</label>{{ form.mrp_amount }}</div>
+  <div class="field"><label>{{ form.discount_amount.label }}</label>{{ form.discount_amount }}</div>
+  <div class="field"><label>{{ form.processing_fee.label }}</label>{{ form.processing_fee }}</div>
+
+  <div class="field"><label>{{ form.gst_amount.label }}</label>{{ form.gst_amount }}</div>
+  <div class="field"><label>{{ form.other_charges.label }}</label>{{ form.other_charges }}</div>
+  <div class="field"><label>{{ form.other_charges_description.label }}</label>{{ form.other_charges_description }}</div>
+  <div class="field"><label>{{ form.paid_amount.label }}</label>{{ form.paid_amount }}</div>
+
+  <div class="field"><label>{{ form.payment_mode.label }}</label>{{ form.payment_mode }}</div>
+  <div class="field"><label>{{ form.sale_date.label }}</label>{{ form.sale_date }}</div>
+  <div class="field full"><label>{{ form.notes.label }}</label>{{ form.notes }}</div>
+
+  {{ form.non_field_errors }}
+  {% for field in form %}
+    {% if field.errors %}<div class="alert">{{ field.label }}: {{ field.errors|striptags }}</div>{% endif %}
+  {% endfor %}
+
+  <div class="actions"><button class="btn" type="submit">{{ title }}</button><a class="btn" href="{% url 'erp_sales' %}" style="background:#9aa59e">Cancel</a></div>
+</form>
+</section>
+
+<script>
+function setVal(id, value){
+  if(value===undefined||value===null||value==='') return;
+  var el=document.getElementById(id);
+  if(!el) return;
+  el.value=value;
+}
+function bindAutofill(selectId, kind){
+  var sel=document.getElementById(selectId);
+  if(!sel) return;
+  var base="{% url 'erp_customer_json' 0 %}";
+  if(kind==='order') base="{% url 'erp_order_json' 0 %}";
+  sel.addEventListener('change',function(){
+    var pk=this.value;
+    if(!pk) return;
+    var url=base.replace('/0/','/'+pk+'/');
+    fetch(url).then(function(r){return r.json();}).then(function(data){
+      if(kind==='customer'){
+        setVal('id_customer_name',data.name);
+        setVal('id_phone',data.phone);
+      }else if(kind==='order'){
+        setVal('id_customer_name',data.name);
+        setVal('id_phone',data.phone);
+        if(data.product_id) setVal('id_product',data.product_id);
+        setVal('id_quantity',data.quantity);
+        setVal('id_amount',data.amount);
+        if(data.payment_mode) setVal('id_payment_mode',data.payment_mode);
+      }
+    });
+  });
+}
+bindAutofill('id_customer','customer');
+bindAutofill('id_order','order');
+</script>
+{% endblock %}

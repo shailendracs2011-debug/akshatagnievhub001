@@ -1,16 +1,19 @@
 import base64
 import io
+from datetime import date
 
 from django import forms
 from django.urls import reverse_lazy
 
 from .images import bytes_to_data_url, thumbnail_data_url, HERO_BYTES, HERO_EDGE, THUMBNAIL_BYTES
 from .models import (
+    Customer,
     Enquiry,
     GalleryImage,
     Order,
     Product,
     ProductGallery,
+    Sale,
     ServiceQuery,
     SiteSetting,
     SupportQuery,
@@ -593,3 +596,70 @@ class SiteSettingForm(forms.ModelForm):
         if commit:
             obj.save()
         return obj
+
+
+class SaleForm(forms.ModelForm):
+    """Admin-facing form to record a walk-in sale.
+
+    The customer and order dropdowns are hooked up to JSON endpoints so
+    picking a customer (or an existing order) auto-fills the name, phone
+    and order details instead of re-typing them on every page.
+    """
+
+    class Meta:
+        model = Sale
+        fields = [
+            'customer', 'order', 'customer_name', 'phone', 'product',
+            'quantity', 'amount', 'mrp_amount', 'discount_amount',
+            'processing_fee', 'gst_amount', 'other_charges',
+            'other_charges_description', 'paid_amount', 'payment_mode',
+            'sale_date', 'notes',
+        ]
+        widgets = {
+            'customer': forms.Select(attrs={'class': 'select', 'data-autofill': 'customer'}),
+            'order': forms.Select(attrs={'class': 'select', 'data-autofill': 'order'}),
+            'customer_name': forms.TextInput(attrs={'class': 'input', 'autocomplete': 'off'}),
+            'phone': forms.TextInput(attrs={'class': 'input', 'autocomplete': 'off', 'inputmode': 'tel'}),
+            'product': forms.Select(attrs={'class': 'select'}),
+            'amount': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
+            'mrp_amount': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
+            'discount_amount': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
+            'processing_fee': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
+            'gst_amount': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
+            'other_charges': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
+            'paid_amount': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
+            'payment_mode': forms.Select(attrs={'class': 'select'}),
+            'sale_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+            'notes': forms.Textarea(attrs={'class': 'input', 'rows': 3}),
+            'other_charges_description': forms.TextInput(attrs={'class': 'input'}),
+        }
+        labels = {
+            'customer': 'Customer / ग्राहक',
+            'order': 'Existing Order / बुकिंग',
+            'customer_name': 'Customer Name / ग्राहक का नाम',
+            'phone': 'Phone / फ़ोन',
+            'product': 'Product / उत्पाद',
+            'quantity': 'Qty / मात्रा',
+            'amount': 'Amount / राशि',
+            'mrp_amount': 'MRP / अंकित मूल्य',
+            'discount_amount': 'Discount / छूट',
+            'processing_fee': 'Processing Fee / प्रोसेसिंग शुल्क',
+            'gst_amount': 'GST / जीएसटी',
+            'other_charges': 'Other Charges / अन्य शुल्क',
+            'other_charges_description': 'Other Charges Note / टिप्पणी',
+            'paid_amount': 'Paid Amount / भुगतान राशि',
+            'payment_mode': 'Payment Mode / भुगतान का तरीका',
+            'sale_date': 'Sale Date / बिक्री तिथि',
+            'notes': 'Notes / नोट्स',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['customer'].queryset = Customer.objects.all().order_by('name')
+        self.fields['customer'].empty_label = '-- Select customer --'
+        self.fields['order'].queryset = Order.objects.select_related('product').order_by('-created_at')
+        self.fields['order'].empty_label = '-- Select order --'
+        self.fields['product'].queryset = Product.objects.all().order_by('name')
+        self.fields['product'].empty_label = '-- Select product --'
+        if not self.initial.get('sale_date'):
+            self.initial['sale_date'] = date.today()

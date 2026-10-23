@@ -1,5 +1,5 @@
 {% extends 'erp/base.html' %}{% block content %}<div class="page-actions">
-{% if kind == 'sales' %}<a class="btn" href="{% url 'export_sales' %}">Export Excel</a>{% endif %}
+{% if kind == 'sales' %}<a class="btn" href="{% url 'erp_add_sale' %}">Add Sale</a> <a class="btn" href="{% url 'export_sales' %}">Export Excel</a>{% endif %}
 {% if kind == 'purchases' %}<a class="btn" href="{% url 'export_purchases' %}">Export Excel</a>{% endif %}
 {% if kind == 'orders' %}<a class="btn" href="{% url 'export_orders' %}">Export Excel</a>{% endif %}
 {% if kind == 'enquiries' %}<a class="btn" href="{% url 'export_enquiries' %}">Export Excel</a>{% endif %}
