@@ -747,6 +747,11 @@ def invoice_verify(request, code):
     return resp
 
 
+def custom_404(request, exception=None):
+    """Redirect any unknown/mistyped URL to the homepage instead of exposing internals."""
+    return redirect('/')
+
+
 def _export_excel(filename, headers, rows):
     wb = Workbook()
     ws = wb.active
