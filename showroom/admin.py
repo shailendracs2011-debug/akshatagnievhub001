@@ -33,6 +33,7 @@ class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
     inlines = [ProductEMIInline, ProductGalleryInline]
     list_display = ('image_thumb', 'name', 'category', 'segment', 'display_price', 'cost_price', 'stock', 'coming_soon', 'published', 'featured')
+    list_display_links = ('name',)
     list_filter = ('category', 'coming_soon', 'published', 'featured')
     search_fields = ('name', 'name_hi', 'sku', 'segment')
     prepopulated_fields = {'slug': ('name',)}
