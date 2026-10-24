@@ -123,10 +123,20 @@ def category_page(request, slug):
     category = get_object_or_404(Category, slug=slug, published=True)
     products = Product.objects.filter(published=True, category=category).select_related('category')
     segment = request.GET.get('segment','').strip()
-    if segment: products = products.filter(segment=segment)
-    segments = products.exclude(segment='').values_list('segment', flat=True).distinct()
-    ctx=base_context(request); ctx.update({'category':category,'products':products,'segments':segments,'selected_segment':segment})
-    return render(request,'category.html',ctx)
+    # Dedupe segments case/whitespace-insensitively so admin-entered variants
+    # such as "Heavy Duty" and "Heavy Duty " don't repeat in the UI.
+    seen = set()
+    segments = []
+    for s in products.exclude(segment='').values_list('segment', flat=True).distinct():
+        key = s.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            segments.append(s)
+    if segment:
+        products = products.filter(segment=segment)
+    ctx = base_context(request)
+    ctx.update({'category': category, 'products': products, 'segments': segments, 'selected_segment': segment})
+    return render(request, 'category.html', ctx)
 
 
 def product_detail(request, slug):
