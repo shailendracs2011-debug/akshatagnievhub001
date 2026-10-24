@@ -24,5 +24,5 @@ urlpatterns=[
   path('erp/support/',erp_support,name='erp_support'), path('erp/support/export/',export_support_excel,name='export_support'),
   path('erp/ledger/',erp_ledger,name='erp_ledger'), path('erp/ledger/export/',export_ledger_excel,name='export_ledger'),
   path('erp/reports/',erp_reports,name='erp_reports'), path('erp/reports/export/',export_reports_excel,name='export_reports'),
-  path('erp/sale/<int:pk>/invoice/',invoice_pdf,name='invoice_pdf'),
+  path('erp/sale/<int:pk>/invoice/',invoice_pdf,name='invoice_pdf'), path('invoice/verify/<str:code>/',invoice_verify,name='invoice_verify'),
 ]

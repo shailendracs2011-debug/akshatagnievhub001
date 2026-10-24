@@ -327,11 +327,15 @@ class Order(TimeStamped):
 class Sale(TimeStamped):
     PAYMENT_CHOICES = [('Cash','Cash'),('UPI','UPI'),('Card','Card'),('Bank','Bank Transfer'),('Credit','Credit'),('EMI','EMI')]
     invoice_no = models.CharField(max_length=50, unique=True)
+    invoice_code = models.CharField(max_length=20, unique=True, null=True, blank=True, help_text='System-generated short code used for public invoice verification / QR link.')
     order = models.OneToOneField('Order', null=True, blank=True, on_delete=models.SET_NULL, related_name='sale')
     auto_generated_from_order = models.BooleanField(default=False)
     customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL)
     customer_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    billing_address = models.TextField(blank=True, help_text='Billing address shown on the invoice.')
+    shipping_address = models.TextField(blank=True, help_text='Shipping/delivery address shown on the invoice.')
     product = models.ForeignKey(Product, null=True, blank=True, on_delete=models.SET_NULL)
     quantity = models.PositiveIntegerField(default=1)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -347,6 +351,12 @@ class Sale(TimeStamped):
     notes = models.TextField(blank=True)
     stock_applied_quantity = models.PositiveIntegerField(default=0, editable=False)
     stock_applied_product_id = models.PositiveBigIntegerField(null=True, blank=True, editable=False)
+
+    def save(self, *args, **kwargs):
+        if not self.invoice_code:
+            self.invoice_code = _next_invoice_code()
+        super().save(*args, **kwargs)
+
     @property
     def balance_amount(self): return max(Decimal('0'), self.amount - self.paid_amount)
 
@@ -355,6 +365,16 @@ class Sale(TimeStamped):
     @property
     def profit_amount(self): return self.amount - self.cost_amount
     def __str__(self): return self.invoice_no
+
+
+def _next_invoice_code():
+    import string, random
+    alphabet = string.ascii_uppercase + string.digits
+    for _ in range(10):
+        code = 'AAE-' + ''.join(random.choices(alphabet, k=6))
+        if not Sale.objects.filter(invoice_code=code).exists():
+            return code
+    return 'AAE-' + ''.join(random.choices(alphabet, k=8))
 
 
 class Purchase(TimeStamped):

@@ -609,8 +609,8 @@ class SaleForm(forms.ModelForm):
     class Meta:
         model = Sale
         fields = [
-            'customer', 'order', 'customer_name', 'phone', 'product',
-            'quantity', 'amount', 'mrp_amount', 'discount_amount',
+            'customer', 'order', 'customer_name', 'email', 'phone', 'billing_address', 'shipping_address',
+            'product', 'quantity', 'amount', 'mrp_amount', 'discount_amount',
             'processing_fee', 'gst_amount', 'other_charges',
             'other_charges_description', 'paid_amount', 'payment_mode',
             'sale_date', 'notes',
@@ -619,7 +619,10 @@ class SaleForm(forms.ModelForm):
             'customer': forms.Select(attrs={'class': 'select', 'data-autofill': 'customer'}),
             'order': forms.Select(attrs={'class': 'select', 'data-autofill': 'order'}),
             'customer_name': forms.TextInput(attrs={'class': 'input', 'autocomplete': 'off'}),
+            'email': forms.EmailInput(attrs={'class': 'input', 'autocomplete': 'off'}),
             'phone': forms.TextInput(attrs={'class': 'input', 'autocomplete': 'off', 'inputmode': 'tel'}),
+            'billing_address': forms.Textarea(attrs={'class': 'input', 'rows': 2}),
+            'shipping_address': forms.Textarea(attrs={'class': 'input', 'rows': 2}),
             'product': forms.Select(attrs={'class': 'select'}),
             'amount': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),
             'mrp_amount': forms.NumberInput(attrs={'class': 'input', 'step': '0.01'}),

@@ -73,9 +73,15 @@ function bindAutofill(selectId, kind){
       if(kind==='customer'){
         setVal('id_customer_name',data.name);
         setVal('id_phone',data.phone);
+        setVal('id_email',data.email||'');
+        setVal('id_billing_address',data.address||'');
+        setVal('id_shipping_address',data.address||'');
       }else if(kind==='order'){
         setVal('id_customer_name',data.name);
         setVal('id_phone',data.phone);
+        setVal('id_email',data.email||'');
+        setVal('id_billing_address',data.address||'');
+        setVal('id_shipping_address',data.address||'');
         if(data.product_id) setVal('id_product',data.product_id);
         setVal('id_quantity',data.quantity);
         setVal('id_amount',data.amount);

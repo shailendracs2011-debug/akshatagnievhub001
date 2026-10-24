@@ -7,12 +7,14 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.db.models import Q, Sum, Count, F
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_RIGHT
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage, HRFlowable
 from .forms import (
     EnquiryForm,
     OrderForm,
@@ -428,7 +430,7 @@ def erp_edit_sale(request, pk):
 @staff_member_required
 def erp_customer_json(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
-    return JsonResponse({'name': customer.name, 'phone': customer.mobile})
+    return JsonResponse({'name': customer.name, 'phone': customer.mobile, 'email': customer.email or '', 'address': customer.address or ''})
 
 
 @staff_member_required
@@ -437,6 +439,8 @@ def erp_order_json(request, pk):
     return JsonResponse({
         'name': order.name,
         'phone': order.phone,
+        'email': order.email or '',
+        'address': order.address or '',
         'product_id': order.product.pk if order.product else '',
         'product': order.product.name if order.product else '',
         'quantity': order.quantity,
@@ -490,113 +494,256 @@ def erp_settings(request):
     return render(request, 'erp/settings.html', {'form': form, 'title': 'Company Settings'})
 
 
-@staff_member_required
-def invoice_pdf(request, pk):
-    sale = get_object_or_404(Sale.objects.select_related('product', 'customer', 'order'), pk=pk)
-    site = settings_obj()
-
-    logo_path = None
-    signature_path = None
+def _load_data_url_image(site_data_url):
+    """Convert a base64 data URL to a temp image file path (or None)."""
+    if not site_data_url or not site_data_url.startswith('data:'):
+        return None
     try:
         from PIL import Image
         import io as _io
-        tmp_dir = tempfile.gettempdir()
-        if site.logo_data and site.logo_data.startswith('data:'):
-            header, data = site.logo_data.split(',', 1)
-            img = Image.open(_io.BytesIO(base64.b64decode(data)))
-            if img.mode in ('RGBA', 'P'):
-                img = img.convert('RGB')
-            fd, logo_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
-            with os.fdopen(fd, 'wb') as f:
-                img.save(f, 'JPEG', quality=90)
-        if site.signature_data and site.signature_data.startswith('data:'):
-            header, data = site.signature_data.split(',', 1)
-            img = Image.open(_io.BytesIO(base64.b64decode(data)))
-            if img.mode in ('RGBA', 'P'):
-                img = img.convert('RGB')
-            fd, signature_path = tempfile.mkstemp(suffix='.jpg', dir=tmp_dir)
-            with os.fdopen(fd, 'wb') as f:
-                img.save(f, 'JPEG', quality=90)
+        header, data = site_data_url.split(',', 1)
+        raw = base64.b64decode(data)
+        img = Image.open(_io.BytesIO(raw))
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        fd, path = tempfile.mkstemp(suffix='.jpg', dir=tempfile.gettempdir())
+        with os.fdopen(fd, 'wb') as f:
+            img.save(f, 'JPEG', quality=90)
+        return path
     except Exception:
-        logo_path = None
-        signature_path = None
+        return None
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
+
+def _cleanup_temp(path):
+    try:
+        if path and os.path.exists(path):
+            os.remove(path)
+    except Exception:
+        pass
+
+
+def build_invoice_pdf(sale, request):
+    """Build a full-page invoice PDF for a Sale as bytes."""
+    site = settings_obj()
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=16*mm, rightMargin=16*mm, topMargin=14*mm, bottomMargin=14*mm,
+        title=f'Invoice {sale.invoice_no}',
+        author=site.business_name or 'Akshat Agni EV Motors',
+    )
     styles = getSampleStyleSheet()
     story = []
 
-    story.append(Paragraph(f"<b>{site.business_name or 'Akshat Agni EV Motors'}</b>", styles['Title']))
-    story.append(Paragraph(f"{site.address or ''}<br/>Phone: {site.phone_primary or ''} / {site.phone_secondary or ''}<br/>GSTIN: {site.gst_number or '-'}<br/>{site.website or ''}", styles['Normal']))
-    story.append(Spacer(1, 12))
-    story.append(Paragraph("<b>Invoice</b>", styles['Heading2']))
-    story.append(Spacer(1, 12))
+    def P(text, style='Normal', **kw):
+        st = ParagraphStyle('tmp', parent=styles[style], **kw)
+        return Paragraph(text, st)
 
-    story.append(Paragraph(f"<b>Bill To:</b><br/>{sale.customer_name}<br/>{getattr(sale.customer, 'address', '') or ''}<br/>{getattr(sale.customer, 'mobile', '') or ''}<br/>{getattr(sale.customer, 'email', '') or ''}", styles['Normal']))
-    story.append(Spacer(1, 6))
+    # ---------- Header: logo + company ----------
+    logo_path = _load_data_url_image(site.logo_data)
+    logo_cell = ''
+    if logo_path:
+        logo_cell = RLImage(logo_path, width=52*mm, height=26*mm, kind='proportional')
+
+    company_lines = []
+    if site.business_name:
+        company_lines.append(f'<b>{site.business_name}</b>')
+    if site.address:
+        company_lines.append(site.address)
+    contact_bits = []
+    if site.phone_primary:
+        contact_bits.append(f'Ph: {site.phone_primary}')
+    if site.phone_secondary:
+        contact_bits.append(f'/{site.phone_secondary}')
+    if site.gst_number:
+        contact_bits.append(f'GSTIN: {site.gst_number}')
+    if site.website:
+        contact_bits.append(site.website)
+    if contact_bits:
+        company_lines.append(' | '.join(contact_bits))
+    if site.authorized_person:
+        company_lines.append(f'Authorised Person: {site.authorized_person}')
+
+    header_data = [[logo_cell, P('<br/>'.join(company_lines) if company_lines else 'Akshat Agni EV Motors', 'Normal', alignment=TA_RIGHT)]]
+    header_t = Table(header_data, colWidths=[60*mm, 130*mm])
+    header_t.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(header_t)
+    story.append(Spacer(1, 4))
+    story.append(HRFlowable(width='100%', thickness=1.4, color=colors.HexColor('#0b6b43')))
+    story.append(Spacer(1, 10))
+
+    # ---------- Invoice meta ----------
     payment_status = getattr(getattr(sale, 'order', None), 'payment_status', '') or ''
-    story.append(Paragraph(f"<b>Invoice No:</b> {sale.invoice_no}<br/><b>Date:</b> {sale.sale_date.strftime('%d %b %Y') if sale.sale_date else ''}<br/><b>Payment Mode:</b> {sale.payment_mode}<br/><b>Payment Status:</b> {payment_status}", styles['Normal']))
-    story.append(Spacer(1, 12))
-
-    data = [
-        ['#', 'Product', 'Qty', 'MRP', 'Discount', 'Processing Fee', 'GST', 'Other Charges', 'Amount'],
-        ['1', sale.product.name if sale.product else '-', str(sale.quantity), f"{sale.mrp_amount:.2f}", f"{sale.discount_amount:.2f}", f"{sale.processing_fee:.2f}", f"{sale.gst_amount:.2f}", f"{sale.other_charges:.2f}", f"{sale.amount:.2f}"],
+    meta_data = [
+        [P('<b>Invoice No:</b>', 'Normal'), P(sale.invoice_no, 'Normal'),
+         P('<b>Date:</b>', 'Normal'), P(sale.sale_date.strftime('%d %b %Y') if sale.sale_date else '', 'Normal')],
+        [P('<b>Payment Mode:</b>', 'Normal'), P(sale.payment_mode, 'Normal'),
+         P('<b>Payment Status:</b>', 'Normal'), P(payment_status.title() if payment_status else '', 'Normal')],
+        [P('<b>Invoice Code:</b>', 'Normal'), P(sale.invoice_code or '-', 'Normal'),
+         P('<b>Verify:</b>', 'Normal'), P('Online', 'Normal')],
     ]
-    t = Table(data, colWidths=[20, 80, 30, 45, 45, 55, 45, 55, 55])
-    t.setStyle(TableStyle([
+    meta_t = Table(meta_data, colWidths=[32*mm, 50*mm, 32*mm, 76*mm])
+    meta_t.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#dce8e1')),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f3f7f5')),
+        ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#f3f7f5')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(meta_t)
+    story.append(Spacer(1, 10))
+
+    # ---------- Bill To / Ship To ----------
+    bill_lines = [f'<b>{sale.customer_name}</b>']
+    if sale.billing_address:
+        bill_lines.append(sale.billing_address.replace('\n', '<br/>'))
+    elif sale.customer and sale.customer.address:
+        bill_lines.append(sale.customer.address.replace('\n', '<br/>'))
+    if sale.phone:
+        bill_lines.append(f'Phone: {sale.phone}')
+    if sale.email:
+        bill_lines.append(f'Email: {sale.email}')
+
+    ship_lines = [f'<b>{sale.customer_name}</b>']
+    if sale.shipping_address:
+        ship_lines.append(sale.shipping_address.replace('\n', '<br/>'))
+    elif sale.customer and sale.customer.address:
+        ship_lines.append(sale.customer.address.replace('\n', '<br/>'))
+    if sale.phone:
+        ship_lines.append(f'Phone: {sale.phone}')
+
+    addr_data = [
+        [P('<b>BILL TO</b>', 'Normal'), P('<b>SHIP TO</b>', 'Normal')],
+        [P('<br/>'.join(bill_lines), 'Normal'), P('<br/>'.join(ship_lines), 'Normal')],
+    ]
+    addr_t = Table(addr_data, colWidths=[93*mm, 97*mm])
+    addr_t.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#dce8e1')),
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f7f5')),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dce8e1')),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
     ]))
-    story.append(t)
-    story.append(Spacer(1, 12))
+    story.append(addr_t)
+    story.append(Spacer(1, 10))
 
+    # ---------- Product table ----------
+    product_name = sale.product.name if sale.product else '-'
+    prod_data = [
+        [P('<b>#</b>', 'Normal'), P('<b>Product</b>', 'Normal'), P('<b>Qty</b>', 'Normal'),
+         P('<b>MRP</b>', 'Normal'), P('<b>Discount</b>', 'Normal'), P('<b>GST</b>', 'Normal'),
+         P('<b>Amount</b>', 'Normal')],
+        [P('1', 'Normal'), P(product_name, 'Normal'), P(str(sale.quantity), 'Normal'),
+         P(f"₹{sale.mrp_amount:.2f}", 'Normal'), P(f"₹{sale.discount_amount:.2f}", 'Normal'),
+         P(f"₹{sale.gst_amount:.2f}", 'Normal'), P(f"₹{sale.amount:.2f}", 'Normal')],
+    ]
+    prod_t = Table(prod_data, colWidths=[12*mm, 62*mm, 14*mm, 22*mm, 22*mm, 22*mm, 36*mm], repeatRows=1)
+    prod_t.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#dce8e1')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f7f5')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(prod_t)
+    story.append(Spacer(1, 10))
+
+    # ---------- Totals ----------
+    subtotal = sale.amount
     totals_data = [
-        ['Subtotal', f"{sale.amount:.2f}"],
-        ['Paid Amount', f"{sale.paid_amount:.2f}"],
-        ['Balance Due', f"{sale.balance_amount:.2f}"],
+        [P('<b>Subtotal</b>', 'Normal'), P(f"₹{subtotal:.2f}", 'Normal')],
+        [P('<b>GST Amount</b>', 'Normal'), P(f"₹{sale.gst_amount:.2f}", 'Normal')],
+        [P('<b>Paid Amount</b>', 'Normal'), P(f"₹{sale.paid_amount:.2f}", 'Normal')],
+        [P('<b>Balance Due</b>', 'Normal'), P(f"₹{sale.balance_amount:.2f}", 'Normal')],
     ]
-    tt = Table(totals_data, colWidths=[100, 80])
-    tt.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#0b6b43')),
+    totals_t = Table(totals_data, colWidths=[160*mm, 30*mm])
+    totals_t.setStyle(TableStyle([
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (1, -1), (1, -1), 'Helvetica-Bold'),
+        ('LINEABOVE', (1, -1), (1, -1), 1, colors.HexColor('#0b6b43')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
     ]))
-    story.append(tt)
-    story.append(Spacer(1, 12))
+    story.append(totals_t)
+    story.append(Spacer(1, 14))
 
-    if sale.other_charges_description:
-        story.append(Paragraph(f"<b>Other Charges Note:</b> {sale.other_charges_description}", styles['Normal']))
-    if sale.notes:
-        story.append(Paragraph(f"<b>Notes:</b> {sale.notes}", styles['Normal']))
-    story.append(Spacer(1, 20))
+    # ---------- Footer: QR + signature ----------
+    verify_url = request.build_absolute_uri(reverse('invoice_verify', args=[sale.invoice_code])) if sale.invoice_code else ''
+    qr_flowable = ''
+    if verify_url:
+        try:
+            from reportlab.graphics.barcode.qr import QrCodeWidget
+            from reportlab.graphics.shapes import Drawing
+            qr_widget = QrCodeWidget(verify_url)
+            qr_widget.barLevel = 'H'
+            qr_size = 28*mm
+            qr_drawing = Drawing(qr_size, qr_size)
+            qr_widget.barWidth = qr_size / qr_widget.size
+            qr_drawing.add(qr_widget)
+            qr_flowable = qr_drawing
+        except Exception:
+            qr_flowable = P('Verify online', 'Normal')
 
-    footer_data = [
-        [Paragraph(f"<b>Authorized Signatory:</b> {site.signatory_name or ''}<br/><b>Authorized Person:</b> {site.authorized_person or ''}", styles['Normal']), ''],
-    ]
-    if signature_path:
-        footer_data[0][1] = RLImage(signature_path, width=80, height=40)
-    ft = Table(footer_data, colWidths=[300, 100])
-    ft.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('ALIGN', (1, 0), (1, -1), 'CENTER')]))
-    story.append(ft)
+    qr_note = P(f'Scan to verify invoice online<br/><font size="7">{verify_url}</font>', 'Normal', fontSize=7, leading=9) if verify_url else ''
+
+    sig_path = _load_data_url_image(site.signature_data)
+    sig_cell = ''
+    if sig_path:
+        sig_cell = RLImage(sig_path, width=42*mm, height=18*mm, kind='proportional')
+    sig_lines = []
+    if site.signatory_name:
+        sig_lines.append(f'<b>{site.signatory_name}</b>')
+    if site.authorized_person:
+        sig_lines.append(f'Authorised Person: {site.authorized_person}')
+    sig_text = P('<br/>'.join(sig_lines) if sig_lines else 'Authorized Signatory', 'Normal', fontSize=8)
+
+    footer_data = [[qr_flowable, qr_note], [sig_cell, sig_text]]
+    footer_t = Table(footer_data, colWidths=[85*mm, 105*mm])
+    footer_t.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(footer_t)
+    story.append(Spacer(1, 8))
+    story.append(P(f'<font size="6.5" color="#718078">Generated by {site.business_name or "Akshat Agni EV Motors"} | Invoice {sale.invoice_no}</font>', 'Normal'))
 
     doc.build(story)
-    pdf = buffer.getvalue()
-    buffer.close()
-    try:
-        if logo_path and os.path.exists(logo_path):
-            os.remove(logo_path)
-        if signature_path and os.path.exists(signature_path):
-            os.remove(signature_path)
-    except Exception:
-        pass
+    pdf = buf.getvalue()
+    buf.close()
+    return pdf
+
+
+@staff_member_required
+def invoice_pdf(request, pk):
+    sale = get_object_or_404(Sale.objects.select_related('product', 'customer', 'order'), pk=pk)
+    pdf = build_invoice_pdf(sale, request)
     resp = HttpResponse(pdf, content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="invoice-{sale.invoice_no}.pdf"'
+    return resp
+
+
+def invoice_verify(request, code):
+    """Public view: serve invoice PDF by system-generated invoice code (QR target)."""
+    sale = get_object_or_404(Sale.objects.select_related('product', 'customer', 'order'), invoice_code=code)
+    pdf = build_invoice_pdf(sale, request)
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="invoice-{sale.invoice_no}.pdf"'
     return resp
 
 
