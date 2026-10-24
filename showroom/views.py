@@ -194,7 +194,8 @@ def ask_part(request):
     if request.method == 'POST' and form.is_valid():
         obj = form.save(commit=False)
         obj.request_type = 'PART'
-        obj.message = f'Part request ({obj.vehicle_model}): {obj.message}'
+        vehicle_model = form.cleaned_data.get('vehicle_model') or ''
+        obj.message = f'Part request ({vehicle_model}): {obj.message}'
         obj.save()
         ctx = base_context(request)
         ctx['part_request'] = obj
