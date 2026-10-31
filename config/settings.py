@@ -29,6 +29,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'showroom.middleware.DatabaseUnavailableMiddleware',
 ]
 ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{
@@ -58,7 +59,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
 if DATABASE_URL:
-    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=60, ssl_require=True)}
+    # On serverless (Vercel) each invocation is isolated; persistent
+    # connections (conn_max_age > 0) linger and exhaust the small Prisma
+    # connection pool. Keep it at 0 so each request opens/closes its own.
+    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=0, ssl_require=True)}
 else:
     if not DEBUG:
         raise RuntimeError('DATABASE_URL is required in production. Set it in Vercel environment variables.')

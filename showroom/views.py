@@ -74,11 +74,15 @@ def whatsapp_link(site, text):
 def base_context(request):
     lang = get_lang(request)
     gallery = GalleryImage.objects.filter(published=True).order_by('sort_order', '-created_at')
-    # Atomic counter increment in a single UPDATE query; no refresh_from_db needed
-    # (pre-increment value is fine for a visitor counter). Removes the write-on-read
-    # that previously ran get_or_create + update + refresh_from_db on every page.
-    obj, _ = VisitorCount.objects.get_or_create(pk=1, defaults={'count': 0})
-    VisitorCount.objects.filter(pk=obj.pk).update(count=F('count') + 1)
+    # Increment the visitor counter at most once per session so browsing
+    # several pages does not hit the database with a write on every load.
+    if not request.session.get('visitor_counted'):
+        obj, _ = VisitorCount.objects.get_or_create(pk=1, defaults={'count': 0})
+        VisitorCount.objects.filter(pk=obj.pk).update(count=F('count') + 1)
+        visitor_count = obj.count + 1
+        request.session['visitor_counted'] = True
+    else:
+        visitor_count = VisitorCount.objects.filter(pk=1).values_list('count', flat=True).first() or 0
     site = settings_obj()
     default_wa = 'Hello, I would like to know about electric scooters at Akshat Agni EV Motors.' if lang == 'en' else 'नमस्ते, मुझे अक्षत अग्नि ईवी मोटर्स के बारे में जानकारी चाहिए।'
     return {
@@ -87,7 +91,7 @@ def base_context(request):
         't': ui(lang),
         'ph': PLACEHOLDER,
         'gallery_items': gallery[:8],
-        'visitor_count': obj.count,
+        'visitor_count': visitor_count,
         'wa_link': whatsapp_link(site, default_wa),
         'has_eauto': Product.objects.filter(published=True, category__slug='e-auto-7-seater').exists(),
     }
