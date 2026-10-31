@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.db.models import Q, Sum, Count, F
+from django.db.models.functions import TruncMonth
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -73,9 +74,11 @@ def whatsapp_link(site, text):
 def base_context(request):
     lang = get_lang(request)
     gallery = GalleryImage.objects.filter(published=True).order_by('sort_order', '-created_at')
-    obj, _ = VisitorCount.objects.get_or_create(pk=1)
+    # Atomic counter increment in a single UPDATE query; no refresh_from_db needed
+    # (pre-increment value is fine for a visitor counter). Removes the write-on-read
+    # that previously ran get_or_create + update + refresh_from_db on every page.
+    obj, _ = VisitorCount.objects.get_or_create(pk=1, defaults={'count': 0})
     VisitorCount.objects.filter(pk=obj.pk).update(count=F('count') + 1)
-    obj.refresh_from_db()
     site = settings_obj()
     default_wa = 'Hello, I would like to know about electric scooters at Akshat Agni EV Motors.' if lang == 'en' else 'नमस्ते, मुझे अक्षत अग्नि ईवी मोटर्स के बारे में जानकारी चाहिए।'
     return {
@@ -143,8 +146,8 @@ def category_page(request, slug):
 
 def product_detail(request, slug):
     product=get_object_or_404(Product.objects.select_related('category'),slug=slug,published=True)
-    site=settings_obj()
     ctx=base_context(request)
+    site=ctx['site']
     ctx.update({'product':product,'gallery':product.gallery.filter(published=True),'emi_plans':product.emi_plans.filter(active=True),'related':Product.objects.filter(published=True,category=product.category).exclude(pk=product.pk)[:4]})
     ctx['wa_link'] = whatsapp_link(site, f'Hello, I want to know about {product.name}.')
     ctx['spec_rows'] = product.spec_rows()
@@ -378,12 +381,15 @@ def erp_dashboard(request):
     gross=sales_total-cogs; net=gross-expense_total
     cat_data=list(sales.values('product__category__name').annotate(total=Sum('amount')).order_by('-total')[:8])
     model_data=list(sales.values('product__name').annotate(total=Sum('amount')).order_by('-total')[:8])
+    # Two aggregate queries instead of 2 per month in a loop
+    sales_by_month = {m['month']: m['total'] or 0 for m in sales.annotate(month=TruncMonth('sale_date')).values('month').annotate(total=Sum('amount')).order_by('month')}
+    purchases_by_month = {m['month']: m['total'] or 0 for m in purchases.annotate(month=TruncMonth('purchase_date')).values('month').annotate(total=Sum('amount')).order_by('month')}
     monthly=[]
     cursor=start.replace(day=1)
     while cursor<=end:
+        monthly.append({'label':cursor.strftime('%b %Y'),'sales':sales_by_month.get(cursor,0),'purchases':purchases_by_month.get(cursor,0)})
         if cursor.month==12: nxt=cursor.replace(year=cursor.year+1,month=1,day=1)
         else: nxt=cursor.replace(month=cursor.month+1,day=1)
-        monthly.append({'label':cursor.strftime('%b %Y'),'sales':sales.filter(sale_date__gte=cursor,sale_date__lt=nxt).aggregate(v=Sum('amount'))['v'] or 0,'purchases':purchases.filter(purchase_date__gte=cursor,purchase_date__lt=nxt).aggregate(v=Sum('amount'))['v'] or 0})
         cursor=nxt
     ctx={'start':start,'end':end,'sales_total':sales_total,'purchase_total':purchase_total,'expense_total':expense_total,'gross_profit':gross,'net_profit':net,'credit':credit,'debit':debit,'stock_units':Product.objects.aggregate(v=Sum('stock'))['v'] or 0,'product_count':Product.objects.count(),'order_count':Order.objects.count(),'enquiry_count':Enquiry.objects.filter(created_at__date__range=(start,end)).count(),'service_count':ServiceQuery.objects.filter(created_at__date__range=(start,end)).count(),'support_count':SupportQuery.objects.filter(created_at__date__range=(start,end)).count(),'open_service':ServiceQuery.objects.exclude(status__in=['RESOLVED','CLOSED']).count(),'open_support':SupportQuery.objects.exclude(status__in=['RESOLVED','CLOSED']).count(),'cat_data':json.dumps(cat_data, default=str),'model_data':json.dumps(model_data, default=str),'monthly':json.dumps(monthly, default=str),'recent_orders':Order.objects.select_related('product')[:7],'recent_services':ServiceQuery.objects.all()[:5]}
     return render(request,'erp/dashboard.html',ctx)

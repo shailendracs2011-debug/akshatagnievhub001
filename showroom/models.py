@@ -23,6 +23,7 @@ class Category(TimeStamped):
 
     class Meta:
         ordering = ['sort_order', 'name']
+        indexes = [models.Index(fields=['published'])]
         verbose_name_plural = 'Categories'
 
     def save(self, *args, **kwargs):
@@ -245,7 +246,9 @@ class GalleryImage(TimeStamped):
     featured = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
     def __str__(self): return self.title
-    class Meta: ordering = ['sort_order', '-created_at']
+    class Meta: 
+        ordering = ['sort_order', '-created_at']
+        indexes = [models.Index(fields=['published'])]
 
     @property
     def caption(self):
@@ -290,6 +293,8 @@ class Enquiry(TimeStamped):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NEW')
     request_type = models.CharField(max_length=20, choices=REQUEST_TYPE_CHOICES, default='GENERAL', db_index=True)
     preferred_day = models.DateField(null=True, blank=True, help_text='Preferred day for a test ride')
+    class Meta:
+        indexes = [models.Index(fields=['created_at'])]
     def __str__(self):
         return f'{self.name} - {self.phone}'
 
@@ -316,6 +321,9 @@ class Order(TimeStamped):
     payment_mode = models.CharField(max_length=30, choices=PAYMENT_CHOICES, default='Cash')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    class Meta:
+        indexes = [models.Index(fields=['created_at'])]
 
     @property
     def balance_amount(self):
@@ -351,6 +359,9 @@ class Sale(TimeStamped):
     notes = models.TextField(blank=True)
     stock_applied_quantity = models.PositiveIntegerField(default=0, editable=False)
     stock_applied_product_id = models.PositiveBigIntegerField(null=True, blank=True, editable=False)
+
+    class Meta:
+        indexes = [models.Index(fields=['sale_date'])]
 
     def save(self, *args, **kwargs):
         if not self.invoice_code:
@@ -425,6 +436,10 @@ class Offer(TimeStamped):
     valid_until = models.DateField(null=True, blank=True)
     image_data = models.TextField(blank=True)
     published = models.BooleanField(default=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['published'])]
+
     def __str__(self): return self.title
 
 
@@ -483,6 +498,7 @@ class Testimonial(TimeStamped):
 
     class Meta:
         ordering = ['sort_order', '-created_at']
+        indexes = [models.Index(fields=['published'])]
 
     def __str__(self):
         return f'{self.name} - {self.town}'
@@ -504,6 +520,7 @@ class FAQItem(TimeStamped):
 
     class Meta:
         ordering = ['sort_order', 'id']
+        indexes = [models.Index(fields=['published'])]
 
     def __str__(self):
         return self.question
