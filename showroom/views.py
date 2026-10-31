@@ -357,11 +357,19 @@ def order_success(request,pk):
 
 class ERPLoginView(LoginView):
     template_name='erp/login.html'; redirect_authenticated_user=True
+from django.contrib.auth import logout
+from django.contrib import messages
+
+
 class ERPLogoutView(LogoutView):
     http_method_names = ['get', 'post']
-    def get(self, request, *args, **kwargs):
-        response = super().get(request, *args, **kwargs)
-        return response
+    next_page = '/erp/login/'
+
+    def dispatch(self, request, *args, **kwargs):
+        logout(request)
+        request.session.flush()
+        messages.success(request, 'You have been logged out.')
+        return redirect(self.next_page)
 
 
 def _period(request):
