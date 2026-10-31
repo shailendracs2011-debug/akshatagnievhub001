@@ -357,7 +357,11 @@ def order_success(request,pk):
 
 class ERPLoginView(LoginView):
     template_name='erp/login.html'; redirect_authenticated_user=True
-class ERPLogoutView(LogoutView): pass
+class ERPLogoutView(LogoutView):
+    http_method_names = ['get', 'post']
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        return response
 
 
 def _period(request):
