@@ -30,6 +30,7 @@ from .forms import (
 from .i18n import PLACEHOLDER, ui
 from .images import data_url_bytes, resize_data_url
 from .models import Category, Product, ProductGallery, GalleryImage, Enquiry, Order, Sale, Purchase, Expense, LedgerEntry, SiteSetting, ServiceQuery, SupportQuery, VisitorCount, FAQItem, Testimonial
+from .whatsapp import notify_admin, notify_user
 
 # Whitelist of models whose stored image may be served as a URL.
 # Each entry is (model, full-size field, thumbnail field).
@@ -162,50 +163,76 @@ def gallery(request):
 
 
 def enquire(request, slug=None):
-    initial={}
-    if slug: initial['product']=get_object_or_404(Product,slug=slug,published=True)
-    form=EnquiryForm(request.POST or None,initial=initial)
-    if request.method=='POST' and form.is_valid():
-        form.save(); messages.success(request,'Thank you. Our team will contact you shortly. / धन्यवाद, हमारी टीम जल्द संपर्क करेगी।'); return redirect('enquiry')
-    ctx=base_context(request); ctx['form']=form; return render(request,'enquiry.html',ctx)
+      initial={}
+      if slug: initial['product']=get_object_or_404(Product,slug=slug,published=True)
+      form=EnquiryForm(request.POST or None,initial=initial)
+      if request.method=='POST' and form.is_valid():
+          obj = form.save()
+          try:
+              site = settings_obj()
+              msg = f"New Enquiry\nName: {obj.name}\nPhone: {obj.phone}\nProduct: {obj.product.name if obj.product else '-'}\nMessage: {obj.message}\nFrom: {site.business_name}"
+              notify_admin(msg)
+              if obj.phone:
+                  notify_user(obj.phone, f"Thanks for enquiry at {site.business_name}. We will contact you soon. Ref: ENQ-{obj.pk}")
+          except Exception:
+              pass
+          messages.success(request,'Thank you. Our team will contact you shortly. / धन्यवाद, हमारी टीम जल्द संपर्क करेगी।')
+          return redirect('enquiry')
+      ctx=base_context(request); ctx['form']=form; return render(request,'enquiry.html',ctx)
 
 
 def test_ride(request, slug=None):
-    """Book a test ride for a model."""
-    product = None
-    if slug:
-        product = get_object_or_404(Product, slug=slug, published=True)
-    initial = {'product': product} if product else {}
-    form = TestRideForm(request.POST or None, initial=initial)
-    if request.method == 'POST' and form.is_valid():
-        obj = form.save(commit=False)
-        obj.request_type = 'TEST_RIDE'
-        obj.message = f'Test ride request for {obj.product.name if obj.product else "scooter"}'
-        obj.save()
-        ctx = base_context(request)
-        ctx['product'] = product
-        ctx['booked'] = obj
-        return render(request, 'test_ride_success.html', ctx)
-    ctx = base_context(request)
-    ctx.update({'form': form, 'product': product})
-    return render(request, 'test_ride.html', ctx)
+      """Book a test ride for a model."""
+      product = None
+      if slug:
+          product = get_object_or_404(Product, slug=slug, published=True)
+      initial = {'product': product} if product else {}
+      form = TestRideForm(request.POST or None, initial=initial)
+      if request.method == 'POST' and form.is_valid():
+          obj = form.save(commit=False)
+          obj.request_type = 'TEST_RIDE'
+          obj.message = f'Test ride request for {obj.product.name if obj.product else "scooter"}'
+          obj.save()
+          try:
+              site = settings_obj()
+              msg = f"New Test Ride Request\nName: {obj.name}\nPhone: {obj.phone}\nProduct: {obj.product.name if obj.product else '-'}\nPreferred Date: {obj.preferred_date}\nPreferred Time: {obj.preferred_time}\nFrom: {site.business_name}"
+              notify_admin(msg)
+              if obj.phone:
+                  notify_user(obj.phone, f"Test ride request received at {site.business_name}. We will confirm soon. Ref: TR-{obj.pk}")
+          except Exception:
+              pass
+          ctx = base_context(request)
+          ctx['product'] = product
+          ctx['booked'] = obj
+          return render(request, 'test_ride_success.html', ctx)
+      ctx = base_context(request)
+      ctx.update({'form': form, 'product': product})
+      return render(request, 'test_ride.html', ctx)
 
 
 def ask_part(request):
-    """Ask the showroom for a spare part."""
-    form = PartRequestForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        obj = form.save(commit=False)
-        obj.request_type = 'PART'
-        vehicle_model = form.cleaned_data.get('vehicle_model') or ''
-        obj.message = f'Part request ({vehicle_model}): {obj.message}'
-        obj.save()
-        ctx = base_context(request)
-        ctx['part_request'] = obj
-        return render(request, 'ask_part_success.html', ctx)
-    ctx = base_context(request)
-    ctx['form'] = form
-    return render(request, 'ask_part.html', ctx)
+      """Ask the showroom for a spare part."""
+      form = PartRequestForm(request.POST or None)
+      if request.method == 'POST' and form.is_valid():
+          obj = form.save(commit=False)
+          obj.request_type = 'PART'
+          vehicle_model = form.cleaned_data.get('vehicle_model') or ''
+          obj.message = f'Part request ({vehicle_model}): {obj.message}'
+          obj.save()
+          try:
+              site = settings_obj()
+              msg = f"New Part Request\nName: {obj.name}\nPhone: {obj.phone}\nVehicle: {vehicle_model}\nMessage: {obj.message}\nFrom: {site.business_name}"
+              notify_admin(msg)
+              if obj.phone:
+                  notify_user(obj.phone, f"Part request received at {site.business_name}. We will get back to you soon. Ref: PART-{obj.pk}")
+          except Exception:
+              pass
+          ctx = base_context(request)
+          ctx['part_request'] = obj
+          return render(request, 'ask_part_success.html', ctx)
+      ctx = base_context(request)
+      ctx['form'] = form
+      return render(request, 'ask_part.html', ctx)
 
 
 def track_request(request):
@@ -315,17 +342,35 @@ def compare(request):
 
 
 def service_enquiry(request):
-    form=ServiceQueryForm(request.POST or None)
-    if request.method=='POST' and form.is_valid():
-        obj=form.save(); return redirect('ticket_success',ticket=obj.ticket_no)
-    ctx=base_context(request); ctx.update({'form':form,'ticket_type':'service'}); return render(request,'ticket_form.html',ctx)
+      form=ServiceQueryForm(request.POST or None)
+      if request.method=='POST' and form.is_valid():
+          obj=form.save()
+          try:
+              site = settings_obj()
+              msg = f"New Service Request\nTicket: {obj.ticket_no}\nName: {obj.name}\nMobile: {obj.mobile}\nVehicle: {obj.vehicle_model}\nCategory: {obj.get_category_display()}\nIssue: {obj.query}\nFrom: {site.business_name}"
+              notify_admin(msg)
+              if obj.mobile:
+                  notify_user(obj.mobile, f"Service request {obj.ticket_no} received at {site.business_name}. We will update you soon.")
+          except Exception:
+              pass
+          return redirect('ticket_success',ticket=obj.ticket_no)
+      ctx=base_context(request); ctx.update({'form':form,'ticket_type':'service'}); return render(request,'ticket_form.html',ctx)
 
 
 def support_query(request):
-    form=SupportQueryForm(request.POST or None)
-    if request.method=='POST' and form.is_valid():
-        obj=form.save(); return redirect('ticket_success',ticket=obj.ticket_no)
-    ctx=base_context(request); ctx.update({'form':form,'ticket_type':'support'}); return render(request,'ticket_form.html',ctx)
+      form=SupportQueryForm(request.POST or None)
+      if request.method=='POST' and form.is_valid():
+          obj=form.save()
+          try:
+              site = settings_obj()
+              msg = f"New Support Request\nTicket: {obj.ticket_no}\nName: {obj.name}\nMobile: {obj.mobile}\nCategory: {obj.get_category_display()}\nOrder: {obj.order_number}\nQuery: {obj.query}\nFrom: {site.business_name}"
+              notify_admin(msg)
+              if obj.mobile:
+                  notify_user(obj.mobile, f"Support request {obj.ticket_no} received at {site.business_name}. We will update you soon.")
+          except Exception:
+              pass
+          return redirect('ticket_success',ticket=obj.ticket_no)
+      ctx=base_context(request); ctx.update({'form':form,'ticket_type':'support'}); return render(request,'ticket_form.html',ctx)
 
 
 def ticket_success(request,ticket):
@@ -334,21 +379,29 @@ def ticket_success(request,ticket):
 
 
 def book_order(request,slug):
-    product=get_object_or_404(Product,slug=slug,published=True)
-    form=OrderForm(request.POST or None, product=product)
-    if request.method=='POST' and form.is_valid():
-        order=form.save(commit=False); order.product=product
-        try: order.quantity=max(1,int(request.POST.get('quantity','1')))
-        except ValueError: order.quantity=1
-        order.amount=product.display_price*order.quantity
-        order.paid_amount=min(order.amount, max(Decimal('0'), order.paid_amount or Decimal('0')))
-        if order.paid_amount >= order.amount and order.amount > 0:
-            order.payment_status='PAID'
-        elif order.paid_amount > 0:
-            order.payment_status='PARTIAL'
-        order.save()
-        return redirect('order_success',pk=order.pk)
-    ctx=base_context(request); ctx.update({'form':form,'product':product}); return render(request,'book_order.html',ctx)
+      product=get_object_or_404(Product,slug=slug,published=True)
+      form=OrderForm(request.POST or None, product=product)
+      if request.method=='POST' and form.is_valid():
+          order=form.save(commit=False); order.product=product
+          try: order.quantity=max(1,int(request.POST.get('quantity','1')))
+          except ValueError: order.quantity=1
+          order.amount=product.display_price*order.quantity
+          order.paid_amount=min(order.amount, max(Decimal('0'), order.paid_amount or Decimal('0')))
+          if order.paid_amount >= order.amount and order.amount > 0:
+              order.payment_status='PAID'
+          elif order.paid_amount > 0:
+              order.payment_status='PARTIAL'
+          order.save()
+          try:
+              site = settings_obj()
+              msg = f"New Booking/Order\nName: {order.name}\nPhone: {order.phone}\nProduct: {product.name}\nQty: {order.quantity}\nAmount: ₹{order.amount}\nPayment: {order.payment_mode} ({order.payment_status})\nFrom: {site.business_name}"
+              notify_admin(msg)
+              if order.phone:
+                  notify_user(order.phone, f"Booking received at {site.business_name}. Order #{order.pk}. We will contact you for confirmation.")
+          except Exception:
+              pass
+          return redirect('order_success',pk=order.pk)
+      ctx=base_context(request); ctx.update({'form':form,'product':product}); return render(request,'book_order.html',ctx)
 
 
 def order_success(request,pk):
