@@ -147,11 +147,18 @@
         <p style="font-size:var(--fs-xs);color:rgba(232,245,238,.65);margin-top:4px;text-align:center">{{ t.foot_qr_visit }}</p>
       </div>
       <div>
-        <p style="font-size:var(--fs-sm);color:rgba(232,245,238,.82);margin:0">{{ t.foot_last_modified }}: {{ site.updated_at|date:"l, d M, Y" }}</p>
         <p style="font-size:var(--fs-sm);color:rgba(232,245,238,.82);margin:0">{{ t.foot_visitor_count }}: {{ visitor_count }}</p>
-      </div>
     </div>
     <p style="font-size:var(--fs-xs);color:rgba(232,245,238,.65);margin:0">{{ t.foot_owned_by }}: Akshat Agni EV Hub, Maihar</p>
+  </div>
+
+  <div class="wrap" style="padding-block:var(--sp-2);border-top:1px solid rgba(255,255,255,.14);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+    <p style="font-size:var(--fs-xs);color:rgba(232,245,238,.65);margin:0">© {% now "Y" %} {{ site.business_name }} — {{ t.foot_rights }}</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <a href="{% url 'erp_login' %}" style="font-size:var(--fs-xs);color:rgba(232,245,238,.8);text-decoration:none">ERP Login</a>
+      <span style="color:rgba(232,245,238,.4)">|</span>
+      <a href="/admin/" style="font-size:var(--fs-xs);color:rgba(232,245,238,.8);text-decoration:none">Admin Login</a>
+    </div>
   </div>
 
   <div class="copyright">© {% now "Y" %} {{ site.business_name }} — {{ t.foot_rights }}</div>
